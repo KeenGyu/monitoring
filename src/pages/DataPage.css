@@ -1,0 +1,36 @@
+.data-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.data-section-body h3 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.data-hint {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  max-width: 480px;
+}
+
+.data-error {
+  color: var(--status-overdue);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.data-section-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.danger-section {
+  border-color: var(--status-overdue-soft);
+}

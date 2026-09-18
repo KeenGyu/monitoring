@@ -1,0 +1,48 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.status-submitted {
+  background: var(--status-submitted-soft);
+  color: var(--status-submitted);
+}
+.status-submitted .status-dot {
+  background: var(--status-submitted);
+}
+
+.status-progress {
+  background: var(--status-progress-soft);
+  color: var(--status-progress);
+}
+.status-progress .status-dot {
+  background: var(--status-progress);
+}
+
+.status-neutral {
+  background: var(--status-neutral-soft);
+  color: var(--status-neutral);
+}
+.status-neutral .status-dot {
+  background: var(--status-neutral);
+}
+
+.status-overdue {
+  background: var(--status-overdue-soft);
+  color: var(--status-overdue);
+}
+.status-overdue .status-dot {
+  background: var(--status-overdue);
+}

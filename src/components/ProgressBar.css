@@ -1,0 +1,15 @@
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--surface-raised);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brass) 0%, var(--status-submitted) 140%);
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+}

@@ -1,0 +1,79 @@
+.report-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--status-neutral);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.report-card:hover {
+  border-color: var(--border);
+}
+
+.report-card.is-submitted {
+  border-left-color: var(--status-submitted);
+}
+
+.report-card-main {
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+  padding: 16px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.report-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.report-card-name {
+  font-family: var(--font-display);
+  font-size: 16.5px;
+  font-weight: 600;
+}
+
+.report-card-category {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  text-transform: none;
+}
+
+.report-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.report-card-meta .muted {
+  color: var(--text-tertiary);
+}
+
+.report-card-proof {
+  font-size: 13px;
+}
+
+.proof-yes {
+  color: var(--status-submitted);
+}
+
+.proof-no {
+  color: var(--text-tertiary);
+}
+
+.report-card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--border-soft);
+  margin-top: auto;
+}

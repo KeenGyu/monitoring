@@ -1,0 +1,38 @@
+.image-picker-empty {
+  border: 1px dashed var(--border);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  font-size: 13.5px;
+  text-align: center;
+}
+
+.image-picker-empty:hover {
+  border-color: var(--brass);
+  color: var(--text-primary);
+}
+
+.image-picker-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  background: var(--surface-raised);
+}
+
+.image-picker-preview img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.image-picker-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

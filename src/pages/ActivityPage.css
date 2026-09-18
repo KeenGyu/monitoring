@@ -1,0 +1,76 @@
+.activity-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.activity-day-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+  letter-spacing: 0.01em;
+}
+
+.activity-day-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.activity-icon {
+  font-size: 16px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.activity-report {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.activity-message {
+  color: var(--text-secondary);
+}
+
+.activity-detail {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--brass-strong);
+  font-style: italic;
+}
+
+.activity-time {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .activity-row {
+    flex-wrap: wrap;
+  }
+  .activity-time {
+    margin-left: 28px;
+  }
+}

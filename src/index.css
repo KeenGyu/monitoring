@@ -1,0 +1,294 @@
+:root {
+  color-scheme: dark;
+
+  /* Palette — a quiet nightshift ledger: ink background, brass stamp accent */
+  --ink: #14161b;
+  --surface: #1a1d24;
+  --surface-raised: #21252f;
+  --surface-hover: #262a35;
+  --border: #2b303b;
+  --border-soft: #23262f;
+
+  --text-primary: #eceef2;
+  --text-secondary: #9ba1b0;
+  --text-tertiary: #666c7c;
+
+  --brass: #c99a4a;
+  --brass-soft: rgba(201, 154, 74, 0.14);
+  --brass-strong: #e0b768;
+
+  --status-submitted: #52b788;
+  --status-submitted-soft: rgba(82, 183, 136, 0.14);
+  --status-progress: #dba53d;
+  --status-progress-soft: rgba(219, 165, 61, 0.14);
+  --status-neutral: #7a8093;
+  --status-neutral-soft: rgba(122, 128, 147, 0.12);
+  --status-overdue: #e2665a;
+  --status-overdue-soft: rgba(226, 102, 90, 0.14);
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-panel: 0 12px 32px -16px rgba(0, 0, 0, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: var(--brass-soft);
+  color: var(--text-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+  border: 2px solid var(--ink);
+}
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* iOS standalone (Add to Home Screen) draws under the status bar because of
+   apple-mobile-web-app-status-bar-style=black-translucent, so pad the shell
+   with the device's safe-area insets. On non-notched / non-standalone
+   contexts these env() values resolve to 0 and have no effect. */
+@media (display-mode: standalone) {
+  .app-shell {
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+.main-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.page {
+  padding: 32px 40px 64px;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  animation: page-in 0.28s ease both;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 20px 16px 88px;
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.15s ease, background-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--brass);
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn-primary {
+  background: var(--brass);
+  border-color: var(--brass);
+  color: #1a1305;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: var(--brass-strong);
+  border-color: var(--brass-strong);
+}
+
+.btn-danger {
+  border-color: var(--status-overdue);
+  color: var(--status-overdue);
+  background: transparent;
+}
+
+.btn-danger:hover {
+  background: var(--status-overdue-soft);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn-ghost:hover {
+  background: var(--surface-hover);
+  border-color: var(--border);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.field input[type="text"],
+.field input[type="date"],
+.field input[type="time"],
+.field textarea,
+.field select {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  border-color: var(--brass);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brass);
+}
