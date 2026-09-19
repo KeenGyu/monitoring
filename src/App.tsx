@@ -15,6 +15,7 @@ import { SubmitModal } from "./components/SubmitModal";
 import { ReportDetailModal } from "./components/ReportDetailModal";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { CelebrationToast } from "./components/CelebrationToast";
+import { OfflineStatus } from "./components/OfflineStatus";
 import "./App.css";
 
 type ModalState =
@@ -84,11 +85,14 @@ function App() {
 
   return (
     <div className="app-shell">
+      <OfflineStatus />
       <Sidebar current={page} onNavigate={setPage} />
 
       <div className="main-column">
         <MobileHeader />
-        {page === "dashboard" && <Dashboard onOpenReport={handleOpenReport} />}
+        {page === "dashboard" && (
+          <Dashboard onOpenReport={handleOpenReport} />
+        )}
         {page === "reports" && (
           <ReportsPage
             onAddReport={() => setModal({ kind: "add" })}
