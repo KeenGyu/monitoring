@@ -8,10 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import type {
+  Absentee,
   ActivityEvent,
   ActivityType,
   AppSettings,
   ExportBundle,
+  NewAbsenteeInput,
   NewReportInput,
   Report,
   ReportStatus,
@@ -27,6 +29,7 @@ interface AppState {
   reports: Report[];
   activity: ActivityEvent[];
   settings: AppSettings;
+  absentees: Absentee[];
 }
 
 interface AppContextValue extends AppState {
@@ -37,6 +40,10 @@ interface AppContextValue extends AppState {
   submitReport: (id: string, input: SubmissionInput) => string;
   removeProof: (id: string) => void;
   updateMonitoringPeriod: (startMonth: string, endMonth: string) => void;
+  updateProfile: (name: string, role: string) => void;
+  addAbsentee: (input: NewAbsenteeInput) => Absentee;
+  editAbsentee: (id: string, input: NewAbsenteeInput) => void;
+  deleteAbsentee: (id: string) => void;
   exportData: () => ExportBundle;
   importData: (bundle: ExportBundle) => void;
   clearAllData: () => void;
@@ -48,6 +55,7 @@ function defaultSettings(): AppSettings {
   const start = currentMonthKey();
   return {
     monitoringPeriod: { startMonth: start, endMonth: addMonths(start, 2) },
+    profile: { name: "Junrics Butas", role: "QMS Staff" },
   };
 }
 
@@ -57,23 +65,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     reports: [],
     activity: [],
     settings: defaultSettings(),
+    absentees: [],
   });
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([db.loadReports(), db.loadActivity(), db.loadSettings()]).then(
-      ([reports, activity, settings]) => {
-        if (cancelled) return;
-        setState({
-          loading: false,
-          reports,
-          activity: activity.sort((a, b) =>
-            b.timestamp.localeCompare(a.timestamp)
-          ),
-          settings: settings ?? defaultSettings(),
-        });
-      }
-    );
+    Promise.all([
+      db.loadReports(),
+      db.loadActivity(),
+      db.loadSettings(),
+      db.loadAbsentees(),
+    ]).then(([reports, activity, settings, absentees]) => {
+      if (cancelled) return;
+      const merged: AppSettings = settings
+        ? { ...settings, profile: settings.profile ?? defaultSettings().profile }
+        : defaultSettings();
+      setState({
+        loading: false,
+        reports,
+        activity: activity.sort((a, b) =>
+          b.timestamp.localeCompare(a.timestamp)
+        ),
+        settings: merged,
+        absentees,
+      });
+    });
     return () => {
       cancelled = true;
     };
@@ -238,13 +254,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateMonitoringPeriod = useCallback(
     (startMonth: string, endMonth: string) => {
       setState((s) => {
-        const settings: AppSettings = { monitoringPeriod: { startMonth, endMonth } };
+        const settings: AppSettings = {
+          ...s.settings,
+          monitoringPeriod: { startMonth, endMonth },
+        };
         db.putSettings(settings);
         return { ...s, settings };
       });
     },
     []
   );
+
+  const updateProfile = useCallback((name: string, role: string) => {
+    setState((s) => {
+      const settings: AppSettings = {
+        ...s.settings,
+        profile: { name: name.trim(), role: role.trim() },
+      };
+      db.putSettings(settings);
+      return { ...s, settings };
+    });
+  }, []);
+
+  const addAbsentee = useCallback((input: NewAbsenteeInput): Absentee => {
+    const absentee: Absentee = {
+      id: makeId(),
+      employeeName: input.employeeName.trim(),
+      department: input.department.trim(),
+      date: input.date,
+      type: input.type,
+      remarks: input.remarks.trim(),
+      status: input.status,
+      createdAt: new Date().toISOString(),
+    };
+    db.putAbsentee(absentee);
+    setState((s) => ({ ...s, absentees: [...s.absentees, absentee] }));
+    return absentee;
+  }, []);
+
+  const editAbsentee = useCallback((id: string, input: NewAbsenteeInput) => {
+    setState((s) => {
+      const existing = s.absentees.find((a) => a.id === id);
+      if (!existing) return s;
+      const updated: Absentee = {
+        ...existing,
+        employeeName: input.employeeName.trim(),
+        department: input.department.trim(),
+        date: input.date,
+        type: input.type,
+        remarks: input.remarks.trim(),
+        status: input.status,
+      };
+      db.putAbsentee(updated);
+      return {
+        ...s,
+        absentees: s.absentees.map((a) => (a.id === id ? updated : a)),
+      };
+    });
+  }, []);
+
+  const deleteAbsentee = useCallback((id: string) => {
+    setState((s) => {
+      db.deleteAbsenteeRecord(id);
+      return { ...s, absentees: s.absentees.filter((a) => a.id !== id) };
+    });
+  }, []);
 
   const exportData = useCallback((): ExportBundle => {
     return {
@@ -253,13 +327,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       reports: state.reports,
       activity: state.activity,
       settings: state.settings,
+      absentees: state.absentees,
     };
-  }, [state.reports, state.activity, state.settings]);
+  }, [state.reports, state.activity, state.settings, state.absentees]);
 
   const importData = useCallback((bundle: ExportBundle) => {
     db.putAllReports(bundle.reports);
     db.putAllActivity(bundle.activity);
     db.putSettings(bundle.settings);
+    db.putAllAbsentees(bundle.absentees ?? []);
     setState({
       loading: false,
       reports: bundle.reports,
@@ -267,6 +343,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         b.timestamp.localeCompare(a.timestamp)
       ),
       settings: bundle.settings,
+      absentees: bundle.absentees ?? [],
     });
   }, []);
 
@@ -277,6 +354,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       reports: [],
       activity: [],
       settings: defaultSettings(),
+      absentees: [],
     });
   }, []);
 
@@ -290,6 +368,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       submitReport,
       removeProof,
       updateMonitoringPeriod,
+      updateProfile,
+      addAbsentee,
+      editAbsentee,
+      deleteAbsentee,
       exportData,
       importData,
       clearAllData,
@@ -303,6 +385,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       submitReport,
       removeProof,
       updateMonitoringPeriod,
+      updateProfile,
+      addAbsentee,
+      editAbsentee,
+      deleteAbsentee,
       exportData,
       importData,
       clearAllData,

@@ -1,13 +1,15 @@
 import { useState } from "react";
-import type { Report } from "./types";
+import type { Absentee, Report } from "./types";
 import { useApp } from "./store";
 import { Sidebar, MobileHeader, MobileTabBar, type Page } from "./components/Sidebar";
 import { Dashboard } from "./pages/Dashboard";
 import { ReportsPage } from "./pages/ReportsPage";
 import { MonitoringPage } from "./pages/MonitoringPage";
+import { AbsenteesPage } from "./pages/AbsenteesPage";
 import { ActivityPage } from "./pages/ActivityPage";
 import { DataPage } from "./pages/DataPage";
 import { AddReportModal } from "./components/AddReportModal";
+import { AddAbsenteeModal } from "./components/AddAbsenteeModal";
 import { SubmitModal } from "./components/SubmitModal";
 import { ReportDetailModal } from "./components/ReportDetailModal";
 import { ConfirmDialog } from "./components/ConfirmDialog";
@@ -20,7 +22,10 @@ type ModalState =
   | { kind: "edit"; report: Report }
   | { kind: "submit"; report: Report }
   | { kind: "detail"; report: Report }
-  | { kind: "delete"; report: Report };
+  | { kind: "delete"; report: Report }
+  | { kind: "add-absentee" }
+  | { kind: "edit-absentee"; absentee: Absentee }
+  | { kind: "delete-absentee"; absentee: Absentee };
 
 interface ToastState {
   reportName: string;
@@ -28,8 +33,19 @@ interface ToastState {
 }
 
 function App() {
-  const { reports, activity, addReport, editReport, deleteReport, submitReport, removeProof, loading } =
-    useApp();
+  const {
+    reports,
+    activity,
+    addReport,
+    editReport,
+    deleteReport,
+    submitReport,
+    removeProof,
+    loading,
+    addAbsentee,
+    editAbsentee,
+    deleteAbsentee,
+  } = useApp();
   const [page, setPage] = useState<Page>("dashboard");
   const [modal, setModal] = useState<ModalState>({ kind: "none" });
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -83,6 +99,13 @@ function App() {
           />
         )}
         {page === "monitoring" && <MonitoringPage onOpenReport={handleOpenReport} />}
+        {page === "absentees" && (
+          <AbsenteesPage
+            onAddAbsentee={() => setModal({ kind: "add-absentee" })}
+            onEditAbsentee={(absentee) => setModal({ kind: "edit-absentee", absentee })}
+            onDeleteAbsentee={(absentee) => setModal({ kind: "delete-absentee", absentee })}
+          />
+        )}
         {page === "activity" && <ActivityPage />}
         {page === "data" && <DataPage />}
       </div>
@@ -141,6 +164,40 @@ function App() {
           confirmLabel="Delete"
           onConfirm={() => {
             deleteReport(modal.report.id);
+            closeModal();
+          }}
+          onCancel={closeModal}
+        />
+      )}
+
+      {modal.kind === "add-absentee" && (
+        <AddAbsenteeModal
+          onSave={(input) => {
+            addAbsentee(input);
+            closeModal();
+          }}
+          onClose={closeModal}
+        />
+      )}
+
+      {modal.kind === "edit-absentee" && (
+        <AddAbsenteeModal
+          initial={modal.absentee}
+          onSave={(input) => {
+            editAbsentee(modal.absentee.id, input);
+            closeModal();
+          }}
+          onClose={closeModal}
+        />
+      )}
+
+      {modal.kind === "delete-absentee" && (
+        <ConfirmDialog
+          title="Delete absence record?"
+          message={`This permanently removes the record for "${modal.absentee.employeeName}" on ${modal.absentee.date}. This can't be undone.`}
+          confirmLabel="Delete"
+          onConfirm={() => {
+            deleteAbsentee(modal.absentee.id);
             closeModal();
           }}
           onCancel={closeModal}

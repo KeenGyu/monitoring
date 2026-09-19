@@ -45,8 +45,14 @@ export interface MonitoringPeriod {
   endMonth: string; // yyyy-mm
 }
 
+export interface Profile {
+  name: string;
+  role: string;
+}
+
 export interface AppSettings {
   monitoringPeriod: MonitoringPeriod;
+  profile: Profile;
 }
 
 export interface ExportBundle {
@@ -55,7 +61,34 @@ export interface ExportBundle {
   reports: Report[];
   activity: ActivityEvent[];
   settings: AppSettings;
+  absentees: Absentee[];
 }
+
+export type AbsenceType =
+  | "Sick Leave"
+  | "Vacation Leave"
+  | "Emergency Leave"
+  | "Undertime"
+  | "AWOL"
+  | "Other";
+
+export type AbsenceStatus = "pending" | "approved" | "unapproved";
+
+export interface Absentee {
+  id: string;
+  employeeName: string;
+  department: string;
+  date: string; // ISO date (yyyy-mm-dd) of the absence
+  type: AbsenceType;
+  remarks: string;
+  status: AbsenceStatus;
+  createdAt: string; // ISO datetime, when this was logged
+}
+
+export type NewAbsenteeInput = Pick<
+  Absentee,
+  "employeeName" | "department" | "date" | "type" | "remarks" | "status"
+>;
 
 export type NewReportInput = Pick<
   Report,

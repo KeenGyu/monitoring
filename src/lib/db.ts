@@ -1,10 +1,11 @@
-import type { ActivityEvent, AppSettings, Report } from "../types";
+import type { AppSettings, Absentee, ActivityEvent, Report } from "../types";
 
 const DB_NAME = "qms-work-monitor";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_REPORTS = "reports";
 const STORE_ACTIVITY = "activity";
 const STORE_SETTINGS = "settings";
+const STORE_ABSENTEES = "absentees";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -22,6 +23,9 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_SETTINGS)) {
         db.createObjectStore(STORE_SETTINGS, { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains(STORE_ABSENTEES)) {
+        db.createObjectStore(STORE_ABSENTEES, { keyPath: "id" });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -134,6 +138,38 @@ export function putSettings(settings: AppSettings): Promise<void> {
   ).then(() => undefined);
 }
 
+// ---- Absentees ----
+
+export function loadAbsentees(): Promise<Absentee[]> {
+  return getAll<Absentee>(STORE_ABSENTEES);
+}
+
+export function putAbsentee(absentee: Absentee): Promise<void> {
+  return tx(STORE_ABSENTEES, "readwrite", (store) => store.put(absentee)).then(
+    () => undefined
+  );
+}
+
+export function deleteAbsenteeRecord(id: string): Promise<void> {
+  return tx(STORE_ABSENTEES, "readwrite", (store) => store.delete(id)).then(
+    () => undefined
+  );
+}
+
+export function putAllAbsentees(absentees: Absentee[]): Promise<void> {
+  return openDb().then(
+    (db) =>
+      new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(STORE_ABSENTEES, "readwrite");
+        const store = transaction.objectStore(STORE_ABSENTEES);
+        store.clear();
+        absentees.forEach((a) => store.put(a));
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      })
+  );
+}
+
 // ---- Danger zone ----
 
 export function clearAllData(): Promise<void> {
@@ -141,12 +177,13 @@ export function clearAllData(): Promise<void> {
     (db) =>
       new Promise<void>((resolve, reject) => {
         const transaction = db.transaction(
-          [STORE_REPORTS, STORE_ACTIVITY, STORE_SETTINGS],
+          [STORE_REPORTS, STORE_ACTIVITY, STORE_SETTINGS, STORE_ABSENTEES],
           "readwrite"
         );
         transaction.objectStore(STORE_REPORTS).clear();
         transaction.objectStore(STORE_ACTIVITY).clear();
         transaction.objectStore(STORE_SETTINGS).clear();
+        transaction.objectStore(STORE_ABSENTEES).clear();
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
       })

@@ -18,7 +18,7 @@ function isExportBundle(value: unknown): value is ExportBundle {
 }
 
 export function DataPage() {
-  const { reports, activity, exportData, importData, clearAllData } = useApp();
+  const { reports, activity, absentees, exportData, importData, clearAllData } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [pendingImport, setPendingImport] = useState<ExportBundle | null>(null);
@@ -96,6 +96,7 @@ export function DataPage() {
           <p className="data-hint">
             {reports.length} {reports.length === 1 ? "report" : "reports"} ·{" "}
             {activity.length} activity {activity.length === 1 ? "entry" : "entries"} ·{" "}
+            {absentees.length} absence {absentees.length === 1 ? "record" : "records"} ·{" "}
             {proofCount} proof {proofCount === 1 ? "image" : "images"}
           </p>
         </div>
@@ -105,8 +106,8 @@ export function DataPage() {
         <div className="data-section-body">
           <h3>Export data</h3>
           <p className="data-hint">
-            Download everything — reports, activity history, proof images, and settings — as a
-            single JSON file you can keep as a backup.
+            Download everything — reports, activity history, absence records, proof images, and
+            settings — as a single JSON file you can keep as a backup.
           </p>
         </div>
         <div className="data-section-actions">
@@ -143,8 +144,8 @@ export function DataPage() {
         <div className="data-section-body">
           <h3>Clear all data</h3>
           <p className="data-hint">
-            Permanently deletes every report, activity entry, and proof image from this browser.
-            This cannot be undone.
+            Permanently deletes every report, activity entry, absence record, and proof image
+            from this browser. This cannot be undone.
           </p>
         </div>
         <div className="data-section-actions">

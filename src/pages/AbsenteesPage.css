@@ -1,0 +1,43 @@
+.absentees-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.absentee-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.absentee-stat {
+  padding: 16px 18px;
+  text-align: center;
+}
+
+.absentee-stat-count {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.absentee-stat-label {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
+.absentees-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .absentee-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
