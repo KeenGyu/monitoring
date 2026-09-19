@@ -1,5 +1,5 @@
 import type { Absentee } from "../types";
-import { formatDate } from "../lib/dates";
+import { formatDate, formatMinutes } from "../lib/dates";
 import "./AbsenteeCard.css";
 
 interface AbsenteeCardProps {
@@ -39,6 +39,8 @@ export function AbsenteeCard({ absentee, onEdit, onDelete }: AbsenteeCardProps) 
       <div className="absentee-card-meta">
         <span className="absentee-type-pill">{absentee.type}</span>
         <span>{formatDate(absentee.date)}</span>
+        {absentee.minutes ? <span>{formatMinutes(absentee.minutes)}</span> : null}
+        {absentee.deductFromSalary ? <span>· deducted from salary</span> : null}
       </div>
 
       {absentee.remarks ? (

@@ -3,16 +3,16 @@ import { useApp } from "../store";
 import { StatusBadge } from "../components/StatusBadge";
 import { ProgressBar } from "../components/ProgressBar";
 import { EmptyState } from "../components/EmptyState";
+import { SalaryTrendChart } from "../components/SalaryTrendChart";
 import { displayStatus } from "../lib/status";
 import { daysUntil, formatDate, formatDateTime } from "../lib/dates";
 import "./Dashboard.css";
 
 interface DashboardProps {
-  onAddReport: () => void;
   onOpenReport: (report: Report) => void;
 }
 
-export function Dashboard({ onAddReport, onOpenReport }: DashboardProps) {
+export function Dashboard({ onOpenReport }: DashboardProps) {
   const { reports } = useApp();
 
   const total = reports.length;
@@ -50,12 +50,8 @@ export function Dashboard({ onAddReport, onOpenReport }: DashboardProps) {
           icon="◈"
           title="No reports yet."
           subtitle="Looks like you're free... for now."
-          action={
-            <button className="btn btn-primary" onClick={onAddReport}>
-              + Add report
-            </button>
-          }
         />
+        <SalaryTrendChart />
       </div>
     );
   }
@@ -87,6 +83,8 @@ export function Dashboard({ onAddReport, onOpenReport }: DashboardProps) {
           <ProgressBar percent={completion} />
         </div>
       </section>
+
+      <SalaryTrendChart />
 
       {attention.length === 0 ? (
         <section className="dash-section">

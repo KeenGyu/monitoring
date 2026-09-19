@@ -41,3 +41,18 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.duration-row {
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  gap: 8px;
+}
+.duration-row input,
+.duration-row select {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+}

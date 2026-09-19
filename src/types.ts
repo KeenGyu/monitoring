@@ -68,6 +68,8 @@ export type AbsenceType =
   | "Sick Leave"
   | "Vacation Leave"
   | "Emergency Leave"
+  | "Late"
+  | "Half-day"
   | "Undertime"
   | "AWOL"
   | "Other";
@@ -83,11 +85,22 @@ export interface Absentee {
   remarks: string;
   status: AbsenceStatus;
   createdAt: string; // ISO datetime, when this was logged
+  /** Late / Undertime duration in minutes. */
+  minutes?: number;
+  /** When true, Late / Half-day / Undertime is deducted from the salary page. */
+  deductFromSalary?: boolean;
 }
 
 export type NewAbsenteeInput = Pick<
   Absentee,
-  "employeeName" | "department" | "date" | "type" | "remarks" | "status"
+  | "employeeName"
+  | "department"
+  | "date"
+  | "type"
+  | "remarks"
+  | "status"
+  | "minutes"
+  | "deductFromSalary"
 >;
 
 export type NewReportInput = Pick<

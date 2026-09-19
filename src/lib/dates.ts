@@ -1,5 +1,6 @@
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function monthKey(date: Date): string {
@@ -81,6 +82,14 @@ export function formatTimeAgo(iso: string): string {
   const diffDay = Math.round(diffHr / 24);
   if (diffDay < 30) return `${diffDay}d ago`;
   return formatDate(then.toString().slice(0, 10));
+}
+
+export function formatMinutes(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (!h) return `${m}m`;
+  if (!m) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 export function isPastDue(dueDate: string | null): boolean {

@@ -1,7 +1,16 @@
 import { useMemo, useState } from "react";
 import { useSalary } from "../store.salary";
-import { buildMonthPeriods, currentPayPeriodId } from "../lib/salaryCalc";
-import { formatDate, todayIso, currentMonthKey, addMonths, monthLabel } from "../lib/dates";
+import { useApp } from "../store";
+import { buildMonthPeriods, currentPayPeriodId, rateForDate } from "../lib/salaryCalc";
+import {
+  formatDate,
+  formatDateShort,
+  formatMinutes,
+  todayIso,
+  currentMonthKey,
+  addMonths,
+  monthLabel,
+} from "../lib/dates";
 import type { PayPeriod } from "../types.salary";
 import "./SalaryPage.css";
 
@@ -15,6 +24,7 @@ function cutoffLabel(period: PayPeriod): string {
 
 export function SalaryPage() {
   const { loading, config, expenses, updateConfig, addExpense, editExpense, deleteExpense } = useSalary();
+  const { absentees } = useApp();
   const [monthKey, setMonthKey] = useState(currentMonthKey());
   const [showSettings, setShowSettings] = useState(false);
   const [expenseForm, setExpenseForm] = useState<{ payPeriodDate: string } | null>(null);
@@ -23,8 +33,8 @@ export function SalaryPage() {
   const [formAmount, setFormAmount] = useState("");
 
   const periods = useMemo(
-    () => (loading ? [] : buildMonthPeriods(monthKey, config, expenses)),
-    [monthKey, config, expenses, loading]
+    () => (loading ? [] : buildMonthPeriods(monthKey, config, expenses, absentees)),
+    [monthKey, config, expenses, absentees, loading]
   );
 
   const activePeriodId = currentPayPeriodId(todayIso());
@@ -72,7 +82,8 @@ export function SalaryPage() {
         <div>
           <h1>Salary Tracker</h1>
           <p className="salary-subtitle">
-            {peso(config.dailyRate)} / day · every day except {config.restDays.includes(0) ? "Sunday" : "your rest day"}
+            {peso(rateForDate(todayIso(), config))} / day · {config.employmentStatus} · every day except{" "}
+            {config.restDays.includes(0) ? "Sunday" : "your rest day"}
           </p>
         </div>
         <button className="btn" onClick={() => setShowSettings((v) => !v)}>
@@ -83,17 +94,73 @@ export function SalaryPage() {
       {showSettings && (
         <div className="card salary-settings">
           <div className="field">
-            <label>Daily rate</label>
+            <label>Employment status</label>
+            <select
+              value={config.employmentStatus}
+              onChange={(e) =>
+                updateConfig({ employmentStatus: e.target.value as typeof config.employmentStatus })
+              }
+            >
+              <option value="probationary">Probationary</option>
+              <option value="regular">Regular</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Probationary daily rate</label>
             <input
               type="text"
               inputMode="decimal"
-              value={config.dailyRate}
+              value={config.probationaryRate}
               onChange={(e) => {
                 const v = Number(e.target.value);
-                if (Number.isFinite(v)) updateConfig({ dailyRate: v });
+                if (Number.isFinite(v)) updateConfig({ probationaryRate: v });
               }}
             />
           </div>
+          <div className="field">
+            <label>Regular daily rate</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={config.regularRate}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (Number.isFinite(v)) updateConfig({ regularRate: v });
+              }}
+            />
+          </div>
+          {config.employmentStatus === "regular" && (
+            <div className="field">
+              <label>Regularized on (optional)</label>
+              <input
+                type="date"
+                value={config.regularizedOn ?? ""}
+                onChange={(e) => updateConfig({ regularizedOn: e.target.value || null })}
+              />
+              <p className="salary-note">Days before this date are paid at the probationary rate.</p>
+            </div>
+          )}
+          <div className="field">
+            <label>Working hours per day</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={config.hoursPerDay}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (Number.isFinite(v) && v > 0) updateConfig({ hoursPerDay: v });
+              }}
+            />
+          </div>
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={config.deductAttendance}
+              onChange={(e) => updateConfig({ deductAttendance: e.target.checked })}
+            />
+            Auto-deduct late, half-day and undertime
+          </label>
+
           <div className="salary-deduction-toggles">
             <label className="checkbox-row">
               <input
@@ -255,6 +322,15 @@ export function SalaryPage() {
                   <span>−{peso(period.pagIbig)}</span>
                 </div>
               )}
+              {period.attendanceDeductions.map((d) => (
+                <div className="salary-row salary-deduction" key={d.id}>
+                  <span>
+                    {d.type} · {formatDateShort(d.date)}
+                    {d.type !== "Half-day" && d.minutes ? ` · ${formatMinutes(d.minutes)}` : ""}
+                  </span>
+                  <span>−{peso(d.amount)}</span>
+                </div>
+              ))}
               {period.expenses.map((e) => (
                 <div className="salary-row salary-deduction salary-expense-row" key={e.id}>
                   <span>

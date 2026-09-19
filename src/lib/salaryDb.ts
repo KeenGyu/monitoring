@@ -67,7 +67,17 @@ export function loadSalaryConfig(): Promise<SalaryConfig> {
     STORE_CONFIG,
     "readonly",
     (store) => store.get("salary-config")
-  ).then((row) => row?.value ?? DEFAULT_SALARY_CONFIG);
+  ).then((row) => {
+    const saved = (row?.value ?? {}) as Partial<SalaryConfig>;
+    // Configs saved before employment status existed were all at the old
+    // 540 rate, so treat them as probationary instead of jumping to 570.
+    const isLegacy = row && saved.employmentStatus === undefined;
+    return {
+      ...DEFAULT_SALARY_CONFIG,
+      ...saved,
+      ...(isLegacy ? { employmentStatus: "probationary" as const } : {}),
+    };
+  });
 }
 
 export function putSalaryConfig(config: SalaryConfig): Promise<void> {

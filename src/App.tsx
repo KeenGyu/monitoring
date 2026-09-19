@@ -88,9 +88,7 @@ function App() {
 
       <div className="main-column">
         <MobileHeader />
-        {page === "dashboard" && (
-          <Dashboard onAddReport={() => setModal({ kind: "add" })} onOpenReport={handleOpenReport} />
-        )}
+        {page === "dashboard" && <Dashboard onOpenReport={handleOpenReport} />}
         {page === "reports" && (
           <ReportsPage
             onAddReport={() => setModal({ kind: "add" })}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
 import type { Absentee, AbsenceStatus, AbsenceType, NewAbsenteeInput } from "../types";
+import { useApp } from "../store";
 import { todayIso } from "../lib/dates";
 
 interface AddAbsenteeModalProps {
@@ -13,6 +14,8 @@ const TYPES: AbsenceType[] = [
   "Sick Leave",
   "Vacation Leave",
   "Emergency Leave",
+  "Late",
+  "Half-day",
   "Undertime",
   "AWOL",
   "Other",
@@ -24,7 +27,12 @@ const STATUSES: { id: AbsenceStatus; label: string }[] = [
   { id: "unapproved", label: "Unapproved" },
 ];
 
+type Unit = "min" | "hr";
+
 export function AddAbsenteeModal({ initial, onSave, onClose }: AddAbsenteeModalProps) {
+  const { settings } = useApp();
+  const myName = settings.profile.name.trim().toLowerCase();
+
   const [employeeName, setEmployeeName] = useState(initial?.employeeName ?? "");
   const [department, setDepartment] = useState(initial?.department ?? "");
   const [date, setDate] = useState(initial?.date ?? todayIso());
@@ -32,12 +40,41 @@ export function AddAbsenteeModal({ initial, onSave, onClose }: AddAbsenteeModalP
   const [status, setStatus] = useState<AbsenceStatus>(initial?.status ?? "pending");
   const [remarks, setRemarks] = useState(initial?.remarks ?? "");
 
-  const canSave = employeeName.trim().length > 0 && date.length > 0;
+  const initMinutes = initial?.minutes ?? 0;
+  const startsInHours = initMinutes >= 60 && initMinutes % 60 === 0;
+  const [durationValue, setDurationValue] = useState(
+    initMinutes ? String(startsInHours ? initMinutes / 60 : initMinutes) : ""
+  );
+  const [durationUnit, setDurationUnit] = useState<Unit>(startsInHours ? "hr" : "min");
+  const [deductOverride, setDeductOverride] = useState<boolean | null>(
+    initial?.deductFromSalary ?? null
+  );
+
+  const affectsSalary = type === "Late" || type === "Half-day" || type === "Undertime";
+  const needsDuration = type === "Late" || type === "Undertime";
+  const matchesMe = myName.length > 0 && employeeName.trim().toLowerCase() === myName;
+  const deduct = deductOverride ?? matchesMe;
+
+  const minutes = Math.round((Number(durationValue) || 0) * (durationUnit === "hr" ? 60 : 1));
+
+  const canSave =
+    employeeName.trim().length > 0 &&
+    date.length > 0 &&
+    !(affectsSalary && needsDuration && deduct && minutes <= 0);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSave) return;
-    onSave({ employeeName, department, date, type, status, remarks });
+    onSave({
+      employeeName,
+      department,
+      date,
+      type,
+      status,
+      remarks,
+      minutes: needsDuration && minutes > 0 ? minutes : undefined,
+      deductFromSalary: affectsSalary ? deduct : false,
+    });
   }
 
   return (
@@ -74,21 +111,12 @@ export function AddAbsenteeModal({ initial, onSave, onClose }: AddAbsenteeModalP
 
           <div className="field">
             <label htmlFor="af-date">Date</label>
-            <input
-              id="af-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <input id="af-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
 
           <div className="field">
             <label htmlFor="af-type">Type</label>
-            <select
-              id="af-type"
-              value={type}
-              onChange={(e) => setType(e.target.value as AbsenceType)}
-            >
+            <select id="af-type" value={type} onChange={(e) => setType(e.target.value as AbsenceType)}>
               {TYPES.map((t) => (
                 <option key={t} value={t}>
                   {t}
@@ -112,6 +140,49 @@ export function AddAbsenteeModal({ initial, onSave, onClose }: AddAbsenteeModalP
             </select>
           </div>
 
+          {needsDuration && (
+            <div className="field span-2">
+              <label htmlFor="af-duration">
+                {type === "Late" ? "How late?" : "How much undertime?"}
+              </label>
+              <div className="duration-row">
+                <input
+                  id="af-duration"
+                  type="text"
+                  inputMode="decimal"
+                  value={durationValue}
+                  onChange={(e) => setDurationValue(e.target.value)}
+                  placeholder="e.g. 25"
+                />
+                <select
+                  value={durationUnit}
+                  onChange={(e) => setDurationUnit(e.target.value as Unit)}
+                  aria-label="Duration unit"
+                >
+                  <option value="min">minutes</option>
+                  <option value="hr">hours</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {type === "Half-day" && (
+            <p className="salary-note span-2">
+              A half-day deducts half of that day's rate from the salary page.
+            </p>
+          )}
+
+          {affectsSalary && (
+            <label className="checkbox-row span-2">
+              <input
+                type="checkbox"
+                checked={deduct}
+                onChange={(e) => setDeductOverride(e.target.checked)}
+              />
+              Deduct from my salary
+            </label>
+          )}
+
           <div className="field span-2">
             <label htmlFor="af-remarks">Remarks</label>
             <textarea
@@ -134,4 +205,4 @@ export function AddAbsenteeModal({ initial, onSave, onClose }: AddAbsenteeModalP
       </form>
     </Modal>
   );
-}   
+}

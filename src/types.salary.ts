@@ -2,9 +2,26 @@
 // Kept in its own file so it doesn't collide with your existing types.ts.
 // Feel free to move these into types.ts later if you'd rather keep one file.
 
+export type EmploymentStatus = "probationary" | "regular";
+
 export interface SalaryConfig {
-  /** Fixed daily rate. No OT pay, so a worked day is always this amount. */
-  dailyRate: number;
+  /** Which rate applies today. */
+  employmentStatus: EmploymentStatus;
+  /** Fixed daily rate while probationary. No OT pay. */
+  probationaryRate: number;
+  /** Fixed daily rate once regular. No OT pay. */
+  regularRate: number;
+  /**
+   * Optional ISO date you became regular. When set (and status is "regular"),
+   * days before this date are still paid at the probationary rate, so past
+   * payouts don't get recalculated at the higher rate.
+   */
+  regularizedOn: string | null;
+  /** Paid hours in a working day. Used to turn the daily rate into a per-minute rate. */
+  hoursPerDay: number;
+  /** Auto-deduct Late / Half-day / Undertime records flagged "Deduct from my salary". */
+  deductAttendance: boolean;
+
   /** Work week: every day except Sunday. Index 0 = Sunday ... 6 = Saturday. */
   restDays: number[]; // default [0] (Sunday only)
 
@@ -38,7 +55,12 @@ export interface SalaryConfig {
 }
 
 export const DEFAULT_SALARY_CONFIG: SalaryConfig = {
-  dailyRate: 540,
+  employmentStatus: "regular",
+  probationaryRate: 540,
+  regularRate: 570,
+  regularizedOn: null,
+  hoursPerDay: 8,
+  deductAttendance: true,
   restDays: [0],
   deductSss: true,
   deductPhilHealth: true,
@@ -63,6 +85,16 @@ export interface Expense {
   createdAt: string;
 }
 
+/** One late / half-day / undertime deduction inside a pay period. */
+export interface AttendanceDeduction {
+  /** Id of the source Absentee record. */
+  id: string;
+  date: string;
+  type: string;
+  minutes: number;
+  amount: number;
+}
+
 /** One cutoff/payout cycle, fully computed. */
 export interface PayPeriod {
   /** e.g. "2026-09-first" / "2026-09-second" */
@@ -80,6 +112,8 @@ export interface PayPeriod {
   philHealth: number;
   pagIbig: number;
   totalContributions: number;
+  attendanceDeductions: AttendanceDeduction[];
+  totalAttendance: number;
   expenses: Expense[];
   totalExpenses: number;
   netPay: number;

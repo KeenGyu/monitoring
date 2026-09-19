@@ -55,7 +55,7 @@ function defaultSettings(): AppSettings {
   const start = currentMonthKey();
   return {
     monitoringPeriod: { startMonth: start, endMonth: addMonths(start, 2) },
-    profile: { name: "Junrics Butas", role: "QMS Staff" },
+    profile: { name: "Juan Dela Cruz", role: "QMS Staff" },
   };
 }
 
@@ -286,6 +286,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       remarks: input.remarks.trim(),
       status: input.status,
       createdAt: new Date().toISOString(),
+      minutes: input.minutes,
+      deductFromSalary: input.deductFromSalary,
     };
     db.putAbsentee(absentee);
     setState((s) => ({ ...s, absentees: [...s.absentees, absentee] }));
@@ -304,6 +306,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         type: input.type,
         remarks: input.remarks.trim(),
         status: input.status,
+        // Assigned directly (no fallback to existing) so switching a record
+        // from Late to Sick Leave, say, clears the stale minutes/deduct flag.
+        minutes: input.minutes,
+        deductFromSalary: input.deductFromSalary,
       };
       db.putAbsentee(updated);
       return {
