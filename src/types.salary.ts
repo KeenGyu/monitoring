@@ -52,6 +52,9 @@ export interface SalaryConfig {
    * at once instead.
    */
   contributionSplit: "even" | "first" | "second";
+
+    /** Payouts with a pay date before this are treated as "no salary yet". */
+  firstPayoutDate: string | null;
 }
 
 export const DEFAULT_SALARY_CONFIG: SalaryConfig = {
@@ -70,6 +73,7 @@ export const DEFAULT_SALARY_CONFIG: SalaryConfig = {
   manualPhilHealth: 176.63,
   manualPagIbig: 141.3,
   contributionSplit: "even",
+    firstPayoutDate: "2026-09-30",
 };
 
 export type CutoffId = "first" | "second";
@@ -117,4 +121,6 @@ export interface PayPeriod {
   expenses: Expense[];
   totalExpenses: number;
   netPay: number;
+    /** True when this cutoff is paid out before your first payout date. */
+  beforeFirstPayout: boolean;
 }

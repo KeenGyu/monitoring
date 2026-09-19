@@ -152,6 +152,15 @@ export function SalaryPage() {
               }}
             />
           </div>
+          <div className="field">
+            <label>First payout date</label>
+            <input
+              type="date"
+              value={config.firstPayoutDate ?? ""}
+              onChange={(e) => updateConfig({ firstPayoutDate: e.target.value || null })}
+            />
+            <p className="salary-note">Cutoffs paid before this date show no salary.</p>
+          </div>
           <label className="checkbox-row">
             <input
               type="checkbox"
@@ -292,71 +301,82 @@ export function SalaryPage() {
                   {formatDate(period.payDate)}
                 </div>
               </div>
-              <div className="salary-net">{peso(period.netPay)}</div>
+              <div className="salary-net">{period.beforeFirstPayout ? "—" : peso(period.netPay)}</div>
             </div>
 
-            <div className="salary-breakdown">
-              <div className="salary-row">
-                <span>Days worked</span>
-                <span>{period.workDays}</span>
-              </div>
-              <div className="salary-row">
-                <span>Gross pay</span>
-                <span>{peso(period.grossPay)}</span>
-              </div>
-              {config.deductSss && (
-                <div className="salary-row salary-deduction">
-                  <span>SSS</span>
-                  <span>−{peso(period.sss)}</span>
+            {period.beforeFirstPayout ? (
+              <p className="salary-note">
+                No salary for this cutoff. Your first payout is {formatDate(config.firstPayoutDate)}.
+              </p>
+            ) : (
+              <>
+                <div className="salary-breakdown">
+                  <div className="salary-row">
+                    <span>Days worked</span>
+                    <span>{period.workDays}</span>
+                  </div>
+                  <div className="salary-row">
+                    <span>Gross pay</span>
+                    <span>{peso(period.grossPay)}</span>
+                  </div>
+                  {config.deductSss && (
+                    <div className="salary-row salary-deduction">
+                      <span>SSS</span>
+                      <span>−{peso(period.sss)}</span>
+                    </div>
+                  )}
+                  {config.deductPhilHealth && (
+                    <div className="salary-row salary-deduction">
+                      <span>PhilHealth</span>
+                      <span>−{peso(period.philHealth)}</span>
+                    </div>
+                  )}
+                  {config.deductPagIbig && (
+                    <div className="salary-row salary-deduction">
+                      <span>Pag-IBIG</span>
+                      <span>−{peso(period.pagIbig)}</span>
+                    </div>
+                  )}
+                  {period.attendanceDeductions.map((d) => (
+                    <div className="salary-row salary-deduction" key={d.id}>
+                      <span>
+                        {d.type} · {formatDateShort(d.date)}
+                        {d.type !== "Half-day" && d.minutes ? ` · ${formatMinutes(d.minutes)}` : ""}
+                      </span>
+                      <span>−{peso(d.amount)}</span>
+                    </div>
+                  ))}
+                  {period.expenses.map((e) => (
+                    <div className="salary-row salary-deduction salary-expense-row" key={e.id}>
+                      <span>
+                        {e.description}
+                        <button className="salary-inline-btn" onClick={() => openEditExpense(period, e.id)}>
+                          edit
+                        </button>
+                        <button
+                          className="salary-inline-btn salary-inline-btn-danger"
+                          onClick={() => deleteExpense(e.id)}
+                        >
+                          remove
+                        </button>
+                      </span>
+                      <span>−{peso(e.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="salary-row salary-total">
+                    <span>Net pay</span>
+                    <span>{peso(period.netPay)}</span>
+                  </div>
                 </div>
-              )}
-              {config.deductPhilHealth && (
-                <div className="salary-row salary-deduction">
-                  <span>PhilHealth</span>
-                  <span>−{peso(period.philHealth)}</span>
-                </div>
-              )}
-              {config.deductPagIbig && (
-                <div className="salary-row salary-deduction">
-                  <span>Pag-IBIG</span>
-                  <span>−{peso(period.pagIbig)}</span>
-                </div>
-              )}
-              {period.attendanceDeductions.map((d) => (
-                <div className="salary-row salary-deduction" key={d.id}>
-                  <span>
-                    {d.type} · {formatDateShort(d.date)}
-                    {d.type !== "Half-day" && d.minutes ? ` · ${formatMinutes(d.minutes)}` : ""}
-                  </span>
-                  <span>−{peso(d.amount)}</span>
-                </div>
-              ))}
-              {period.expenses.map((e) => (
-                <div className="salary-row salary-deduction salary-expense-row" key={e.id}>
-                  <span>
-                    {e.description}
-                    <button className="salary-inline-btn" onClick={() => openEditExpense(period, e.id)}>
-                      edit
-                    </button>
-                    <button
-                      className="salary-inline-btn salary-inline-btn-danger"
-                      onClick={() => deleteExpense(e.id)}
-                    >
-                      remove
-                    </button>
-                  </span>
-                  <span>−{peso(e.amount)}</span>
-                </div>
-              ))}
-              <div className="salary-row salary-total">
-                <span>Net pay</span>
-                <span>{peso(period.netPay)}</span>
-              </div>
-            </div>
 
-            <button className="btn btn-sm btn-ghost salary-add-expense" onClick={() => openAddExpense(period.payDate)}>
-              + Add expense to this payout
-            </button>
+                <button
+                  className="btn btn-sm btn-ghost salary-add-expense"
+                  onClick={() => openAddExpense(period.payDate)}
+                >
+                  + Add expense to this payout
+                </button>
+              </>
+            )}
           </div>
         ))}
       </div>

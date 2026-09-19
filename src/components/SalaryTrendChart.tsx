@@ -21,7 +21,8 @@ const INNER_W = W - L - R;
 const INNER_H = H - T - B;
 
 interface MonthTotals {
-  received: number; // payouts already paid out this month (0-2)
+  received: number; // payouts already paid out this month
+  expected: number; // payouts this month that count (after your first payout)
   hasData: boolean;
   net: number;
   gross: number;
@@ -84,12 +85,17 @@ export function SalaryTrendChart() {
     const today = todayIso();
     const keys = [monthKeyFor(year - 1, 12), ...Array.from({ length: 12 }, (_, i) => monthKeyFor(year, i + 1))];
     return keys.map((key) => {
-      // Only payouts whose pay date has already passed count as real.
-      const paid = buildMonthPeriods(key, config, expenses, absentees).filter((p) => p.payDate <= today);
+      // Payouts before your first payout date don't exist; payouts in the
+      // future haven't been received yet. Only real, received ones count.
+      const counted = buildMonthPeriods(key, config, expenses, absentees).filter(
+        (p) => !p.beforeFirstPayout
+      );
+      const paid = counted.filter((p) => p.payDate <= today);
       const sum = (pick: (p: (typeof paid)[number]) => number) =>
         Math.round(paid.reduce((s, p) => s + pick(p), 0) * 100) / 100;
       return {
         received: paid.length,
+        expected: counted.length,
         hasData: paid.length > 0,
         net: sum((p) => p.netPay),
         gross: sum((p) => p.grossPay),
@@ -106,8 +112,10 @@ export function SalaryTrendChart() {
   const sel = hover ?? lastData;
   const current = sel >= 0 ? months[sel] : undefined;
   const prevRow = sel >= 0 ? (sel === 0 ? rows[0] : months[sel - 1]) : undefined;
-  const isPartial = current ? current.received < 2 : false;
-  const prev = !isPartial && prevRow?.hasData ? prevRow : undefined;
+  const isPartial = current ? current.received < current.expected : false;
+  // Only compare against a previous month that had both payouts, and only
+  // when this month is complete, so the comparison is like for like.
+  const prev = !isPartial && prevRow && prevRow.received >= 2 ? prevRow : undefined;
 
   const top = niceTop(Math.max(...months.flatMap((m) => [m.net, m.expenses]), 1));
   const slot = INNER_W / 12;
@@ -247,9 +255,14 @@ export function SalaryTrendChart() {
               <div className="trend-readout-title">
                 {FULL_MONTHS[sel]} {year}
                 {isPartial ? (
-                  <span className="trend-readout-vs"> · {current.received} of 2 payouts received so far</span>
+                  <span className="trend-readout-vs">
+                    {" "}
+                    · {current.received} of {current.expected} payouts received so far
+                  </span>
                 ) : (
-                  <span className="trend-readout-vs"> vs previous month</span>
+                  <span className="trend-readout-vs">
+                    {prev ? " vs previous month" : ""}
+                  </span>
                 )}
               </div>
               <div className="trend-readout-grid">
@@ -274,9 +287,9 @@ export function SalaryTrendChart() {
                   <Delta now={current.attendance} prev={prev?.attendance} upIsGood={false} />
                 </div>
               </div>
-              {isPartial && (
+              {(isPartial || !prev) && (
                 <p className="trend-note">
-                  Comparison with the previous month starts once both payouts for this month are in.
+                  Comparison with the previous month appears once both months have both payouts in.
                 </p>
               )}
             </div>

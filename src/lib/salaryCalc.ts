@@ -205,6 +205,31 @@ export function buildPayPeriod(
   absentees: Absentee[] = []
 ): PayPeriod {
   const range = cutoffRange(monthKey, cutoff);
+
+  // Cutoffs paid out before your first payout have no salary at all.
+  if (config.firstPayoutDate && range.payDate < config.firstPayoutDate) {
+    return {
+      id: `${monthKey}-${cutoff}`,
+      monthKey,
+      cutoff,
+      periodStart: range.start,
+      periodEnd: range.end,
+      payDate: range.payDate,
+      workDays: 0,
+      grossPay: 0,
+      sss: 0,
+      philHealth: 0,
+      pagIbig: 0,
+      totalContributions: 0,
+      attendanceDeductions: [],
+      totalAttendance: 0,
+      expenses: [],
+      totalExpenses: 0,
+      netPay: 0,
+      beforeFirstPayout: true,
+    };
+  }
+
   const workDays = countWorkDays(range.start, range.end, config.restDays);
   const grossPay = round2(grossBetween(range.start, range.end, config));
 
@@ -252,6 +277,7 @@ export function buildPayPeriod(
     expenses: periodExpenses,
     totalExpenses,
     netPay,
+    beforeFirstPayout: false,
   };
 }
 
