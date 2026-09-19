@@ -8,6 +8,7 @@ import { MonitoringPage } from "./pages/MonitoringPage";
 import { AbsenteesPage } from "./pages/AbsenteesPage";
 import { ActivityPage } from "./pages/ActivityPage";
 import { DataPage } from "./pages/DataPage";
+import { SalaryPage } from "./pages/SalaryPage";
 import { AddReportModal } from "./components/AddReportModal";
 import { AddAbsenteeModal } from "./components/AddAbsenteeModal";
 import { SubmitModal } from "./components/SubmitModal";
@@ -106,6 +107,7 @@ function App() {
             onDeleteAbsentee={(absentee) => setModal({ kind: "delete-absentee", absentee })}
           />
         )}
+        {page === "salary" && <SalaryPage />}
         {page === "activity" && <ActivityPage />}
         {page === "data" && <DataPage />}
       </div>

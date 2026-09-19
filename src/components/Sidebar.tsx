@@ -3,13 +3,14 @@ import { useApp } from "../store";
 import { EditProfileModal } from "./EditProfileModal";
 import "./Sidebar.css";
 
-export type Page = "dashboard" | "reports" | "monitoring" | "absentees" | "activity" | "data";
+export type Page = "dashboard" | "reports" | "monitoring" | "absentees" | "activity" | "data" | "salary";
 
 const NAV: { id: Page; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "◈" },
   { id: "reports", label: "Reports", icon: "▤" },
   { id: "monitoring", label: "3-Month Monitoring", icon: "▦" },
   { id: "absentees", label: "Absentees", icon: "⚑" },
+  { id: "salary", label: "Salary", icon: "₱" },
   { id: "activity", label: "Activity", icon: "◷" },
   { id: "data", label: "Data", icon: "⇅" },
 ];
