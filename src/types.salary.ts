@@ -55,6 +55,9 @@ export interface SalaryConfig {
 
     /** Payouts with a pay date before this are treated as "no salary yet". */
   firstPayoutDate: string | null;
+
+  /** How much you want left over — unspent — by the time the NEXT payout arrives. */
+  savingsGoalPerCutoff: number;
 }
 
 export const DEFAULT_SALARY_CONFIG: SalaryConfig = {
@@ -74,6 +77,7 @@ export const DEFAULT_SALARY_CONFIG: SalaryConfig = {
   manualPagIbig: 141.3,
   contributionSplit: "even",
     firstPayoutDate: "2026-09-30",
+  savingsGoalPerCutoff: 2000,
 };
 
 export type CutoffId = "first" | "second";
@@ -123,4 +127,46 @@ export interface PayPeriod {
   netPay: number;
     /** True when this cutoff is paid out before your first payout date. */
   beforeFirstPayout: boolean;
+}
+
+// ---- Savings / liquidation ----
+
+/** One logged real-world spend — "where the money actually went". */
+export interface SpendingEntry {
+  id: string;
+  description: string;
+  amount: number;
+  /** ISO date the money was spent. */
+  date: string;
+  createdAt: string;
+}
+
+export type NewSpendingInput = Pick<SpendingEntry, "description" | "amount" | "date">;
+
+/**
+ * Savings pace for one payout's "spending window" — the stretch of days
+ * between when that payout lands and when the NEXT one arrives, since
+ * that's the actual span the money has to cover.
+ */
+export interface SavingsSummary {
+  periodId: string;
+  goal: number;
+  netPay: number;
+  /** Inclusive start of the window — this period's pay date. */
+  windowStart: string;
+  /** Exclusive end of the window — the next payout's pay date. */
+  windowEnd: string;
+  totalDays: number;
+  entries: SpendingEntry[];
+  spent: number;
+  /** netPay - goal - spent. Negative means you've dipped into the goal. */
+  remaining: number;
+  /** Whole days left, today included, until windowEnd. 0 once the window has closed. */
+  daysLeft: number;
+  /** remaining / totalDays — the plan you'd set on day one. Null if netPay is 0. */
+  plannedDailyBudget: number | null;
+  /** remaining / daysLeft — recalculated live as you log spending. Null once daysLeft is 0. */
+  paceDailyBudget: number | null;
+  hasStarted: boolean;
+  hasEnded: boolean;
 }

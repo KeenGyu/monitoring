@@ -1,13 +1,14 @@
-import type { Expense, SalaryConfig } from "../types.salary";
+import type { Expense, SalaryConfig, SpendingEntry } from "../types.salary";
 import { DEFAULT_SALARY_CONFIG } from "../types.salary";
 
 // Separate IndexedDB database from db.ts, so adding the salary tracker
 // never touches (or risks) your existing reports/activity/absentees data.
 
 const DB_NAME = "qms-work-monitor-salary";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_EXPENSES = "expenses";
 const STORE_CONFIG = "config";
+const STORE_SPENDING = "spending";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -22,6 +23,9 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_CONFIG)) {
         db.createObjectStore(STORE_CONFIG, { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains(STORE_SPENDING)) {
+        db.createObjectStore(STORE_SPENDING, { keyPath: "id" });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -86,7 +90,7 @@ export function putSalaryConfig(config: SalaryConfig): Promise<void> {
   ).then(() => undefined);
 }
 
-// ---- Expenses ----
+// ---- Expenses (pre-payout deductions, e.g. cash advances) ----
 
 export function loadExpenses(): Promise<Expense[]> {
   return getAll<Expense>(STORE_EXPENSES);
@@ -100,6 +104,24 @@ export function putExpense(expense: Expense): Promise<void> {
 
 export function deleteExpenseRecord(id: string): Promise<void> {
   return tx(STORE_EXPENSES, "readwrite", (store) => store.delete(id)).then(
+    () => undefined
+  );
+}
+
+// ---- Spending log (post-payout — where the money actually went) ----
+
+export function loadSpending(): Promise<SpendingEntry[]> {
+  return getAll<SpendingEntry>(STORE_SPENDING);
+}
+
+export function putSpendingEntry(entry: SpendingEntry): Promise<void> {
+  return tx(STORE_SPENDING, "readwrite", (store) => store.put(entry)).then(
+    () => undefined
+  );
+}
+
+export function deleteSpendingRecord(id: string): Promise<void> {
+  return tx(STORE_SPENDING, "readwrite", (store) => store.delete(id)).then(
     () => undefined
   );
 }

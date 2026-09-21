@@ -1,0 +1,105 @@
+.spending-log {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.spending-log-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.spending-search {
+  flex: 1;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.spending-log-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.spending-log-total-amount {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.spending-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+.spending-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.spending-group-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+  padding-left: 2px;
+}
+
+.spending-group-card {
+  padding: 4px 16px;
+}
+
+.spending-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13.5px;
+}
+
+.spending-row:last-child {
+  border-bottom: none;
+}
+
+.spending-row-desc {
+  flex: 1;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spending-row-amount {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.spending-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .spending-log-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
