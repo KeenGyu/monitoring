@@ -341,7 +341,8 @@ export function SalaryPage() {
                 />
                 <p className="salary-note">
                   How much of each payout you want left over, untouched, by the time the next one
-                  arrives. The suggested daily budget below is built around hitting this.
+                  arrives. Everything you log in the spending log counts against the payout; once
+                  it passes your budget, the excess is taken from this goal.
                 </p>
               </div>
             </div>
@@ -363,6 +364,7 @@ export function SalaryPage() {
                 ? null
                 : buildSavingsSummary(period, config, spending, todayIso());
               const isSpendingNow = period.id === activeSpendingPeriodId;
+              const touched = savings ? savings.goalTouched > 0 : false;
 
               return (
                 <div
@@ -462,12 +464,8 @@ export function SalaryPage() {
                               Savings goal
                               {isSpendingNow && <span className="salary-badge salary-badge-live">Now</span>}
                             </span>
-                            <span
-                              className={`salary-savings-amount ${
-                                savings.remaining < 0 ? "over" : "ok"
-                              }`}
-                            >
-                              {peso(savings.spent)} spent of {peso(savings.netPay)}
+                            <span className={`salary-savings-amount ${touched ? "over" : "ok"}`}>
+                              {peso(savings.goalRemaining)} of {peso(savings.goal)} goal left
                             </span>
                           </div>
 
@@ -479,6 +477,7 @@ export function SalaryPage() {
                                   100,
                                   savings.netPay > 0 ? (savings.spent / savings.netPay) * 100 : 0
                                 )}%`,
+                                background: touched ? "var(--status-overdue)" : undefined,
                               }}
                             />
                             <div
@@ -486,9 +485,7 @@ export function SalaryPage() {
                               style={{
                                 left: `${Math.min(
                                   100,
-                                  savings.netPay > 0
-                                    ? ((savings.netPay - savings.goal) / savings.netPay) * 100
-                                    : 0
+                                  savings.netPay > 0 ? (savings.budget / savings.netPay) * 100 : 0
                                 )}%`,
                               }}
                               title={`Goal: keep ${peso(savings.goal)} unspent`}
@@ -497,22 +494,15 @@ export function SalaryPage() {
 
                           <div className="salary-savings-grid">
                             <div>
-                              <div className="salary-savings-label">Window</div>
-                              <div className="salary-savings-value">
-                                {formatDateShort(savings.windowStart)} – {formatDateShort(savings.windowEnd)}{" "}
-                                ({savings.totalDays}d)
+                              <div className="salary-savings-label">Spent (from log)</div>
+                              <div className={`salary-savings-value ${touched ? "over" : ""}`}>
+                                {peso(savings.spent)} of {peso(savings.netPay)}
                               </div>
                             </div>
                             <div>
-                              <div className="salary-savings-label">
-                                {savings.hasEnded ? "Result" : "On track for"}
-                              </div>
-                              <div
-                                className={`salary-savings-value ${
-                                  savings.remaining < 0 ? "over" : ""
-                                }`}
-                              >
-                                {peso(savings.remaining)} saved
+                              <div className="salary-savings-label">Budget left</div>
+                              <div className="salary-savings-value">
+                                {peso(Math.max(0, savings.budget - savings.spent))}
                               </div>
                             </div>
                             <div>
@@ -527,9 +517,7 @@ export function SalaryPage() {
                               </div>
                               <div
                                 className={`salary-savings-value ${
-                                  savings.paceDailyBudget !== null && savings.paceDailyBudget < 0
-                                    ? "over"
-                                    : "highlight"
+                                  savings.paceDailyBudget === 0 && !savings.hasEnded ? "over" : "highlight"
                                 }`}
                               >
                                 {savings.paceDailyBudget !== null
@@ -542,8 +530,26 @@ export function SalaryPage() {
                             </div>
                           </div>
 
+                          <p className="salary-note">
+                            Window {formatDateShort(savings.windowStart)} – {formatDateShort(savings.windowEnd)} (
+                            {savings.totalDays}d)
+                          </p>
+
+                          {touched && (
+                            <p className="salary-savings-warning" style={{ color: "var(--status-overdue)", fontSize: 13 }}>
+                              You've spent {peso(savings.goalTouched)} of your {peso(savings.goal)} savings goal.
+                              {savings.overspent > 0
+                                ? ` You're also ${peso(savings.overspent)} beyond this whole payout.`
+                                : ""}
+                            </p>
+                          )}
+
                           {savings.entries.length > 0 && (
                             <div className="salary-savings-entries">
+                              <div className="salary-row salary-savings-entries-head">
+                                <span>Spending log</span>
+                                <span>{peso(savings.spent)}</span>
+                              </div>
                               {savings.entries.slice(0, 4).map((e) => (
                                 <div className="salary-row" key={e.id}>
                                   <span>

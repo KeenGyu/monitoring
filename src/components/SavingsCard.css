@@ -1,0 +1,118 @@
+.savings-card {
+  padding: 18px;
+  margin-bottom: 20px;
+}
+
+.savings-card.touched {
+  border-color: var(--status-overdue);
+}
+
+.savings-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.savings-head .section-title {
+  margin-bottom: 2px;
+}
+
+.savings-note {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.savings-goal-left {
+  text-align: right;
+}
+
+.savings-goal-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--status-submitted);
+}
+
+.savings-card.touched .savings-goal-value {
+  color: var(--status-overdue);
+}
+
+.savings-goal-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.savings-bar {
+  display: flex;
+  height: 10px;
+  background: var(--surface-raised);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.savings-bar-spent {
+  background: var(--brass);
+}
+
+.savings-bar-touched {
+  background: var(--status-overdue);
+}
+
+.savings-bar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 8px 0 14px;
+}
+
+.savings-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.savings-dot.spent {
+  background: var(--brass);
+}
+
+.savings-dot.touched {
+  background: var(--status-overdue);
+}
+
+.savings-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 14px;
+}
+
+.savings-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.savings-value {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.savings-warning {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--status-overdue);
+}
+
+@media (max-width: 640px) {
+  .savings-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

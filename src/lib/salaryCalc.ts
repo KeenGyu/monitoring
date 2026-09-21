@@ -76,6 +76,14 @@ export function nextCutoffPayDate(monthKey: string, cutoff: CutoffId): string {
   return cutoffRange(monthKeyOf(next.y, next.m), "first").payDate;
 }
 
+/** The payDate of whichever cutoff paid out right before the given one. */
+function prevCutoffPayDate(monthKey: string, cutoff: CutoffId): string {
+  if (cutoff === "second") return cutoffRange(monthKey, "first").payDate;
+  const { y, m } = parseMonthKey(monthKey);
+  const prev = shiftMonth(y, m, -1);
+  return cutoffRange(monthKeyOf(prev.y, prev.m), "second").payDate;
+}
+
 function eachDate(startIso: string, endIso: string): string[] {
   const out: string[] = [];
   const end = new Date(`${endIso}T00:00:00`);
@@ -349,17 +357,16 @@ export function savingsWindowFor(period: Pick<PayPeriod, "monthKey" | "cutoff" |
 }
 
 /**
- * Which pay period's spending window today falls inside — i.e. whose
- * payout you're currently living on. Different from currentPayPeriodId,
- * which tells you which cutoff you're currently WORKING (accruing days
- * toward the *next* payout).
+ * The pay period whose spending window today falls inside — i.e. whose
+ * payout you're currently living on. Before your first payout, that's
+ * the first payout itself, since spending until then counts against it.
  */
-export function currentSpendingPeriodId(
+export function currentSpendingPeriod(
   todayIso: string,
   config: SalaryConfig,
   expenses: Expense[],
   absentees: Absentee[] = []
-): string | null {
+): PayPeriod | null {
   const { y, m } = parseMonthKey(todayIso.slice(0, 7));
   const candidateMonths = [
     shiftMonth(y, m, -1),
@@ -367,18 +374,27 @@ export function currentSpendingPeriodId(
     shiftMonth(y, m, 1),
   ].map((v) => monthKeyOf(v.y, v.m));
 
-  const candidates: PayPeriod[] = [];
   for (const mk of candidateMonths) {
-    candidates.push(buildPayPeriod(mk, "first", config, expenses, absentees));
-    candidates.push(buildPayPeriod(mk, "second", config, expenses, absentees));
-  }
-
-  for (const period of candidates) {
-    if (period.beforeFirstPayout) continue;
-    const { windowStart, windowEnd } = savingsWindowFor(period);
-    if (todayIso >= windowStart && todayIso < windowEnd) return period.id;
+    for (const cutoff of ["first", "second"] as CutoffId[]) {
+      const period = buildPayPeriod(mk, cutoff, config, expenses, absentees);
+      if (period.beforeFirstPayout) continue;
+      const { windowStart, windowEnd } = savingsWindowFor(period);
+      const isFirstPayout =
+        !!config.firstPayoutDate &&
+        prevCutoffPayDate(period.monthKey, period.cutoff) < config.firstPayoutDate;
+      if ((isFirstPayout || todayIso >= windowStart) && todayIso < windowEnd) return period;
+    }
   }
   return null;
+}
+
+export function currentSpendingPeriodId(
+  todayIso: string,
+  config: SalaryConfig,
+  expenses: Expense[],
+  absentees: Absentee[] = []
+): string | null {
+  return currentSpendingPeriod(todayIso, config, expenses, absentees)?.id ?? null;
 }
 
 export function buildSavingsSummary(
@@ -390,22 +406,34 @@ export function buildSavingsSummary(
   const { windowStart, windowEnd, totalDays } = savingsWindowFor(period);
   const goal = Math.max(0, config.savingsGoalPerCutoff);
 
+  // Spending logged before your very first payout has no window of its own,
+  // so it counts against the first payout.
+  const isFirstPayout =
+    !!config.firstPayoutDate &&
+    period.payDate >= config.firstPayoutDate &&
+    prevCutoffPayDate(period.monthKey, period.cutoff) < config.firstPayoutDate;
+
   const entries = spending
-    .filter((e) => e.date >= windowStart && e.date < windowEnd)
+    .filter((e) => (isFirstPayout || e.date >= windowStart) && e.date < windowEnd)
     .sort((a, b) => (a.date === b.date ? a.createdAt.localeCompare(b.createdAt) : a.date.localeCompare(b.date)));
 
   const spent = round2(entries.reduce((sum, e) => sum + e.amount, 0));
   const remaining = round2(period.netPay - goal - spent);
+
+  const budget = round2(Math.max(0, period.netPay - goal));
+  const goalTouched = round2(Math.min(goal, Math.max(0, spent - budget)));
+  const goalRemaining = round2(goal - goalTouched);
+  const overspent = round2(Math.max(0, spent - budget - goal));
 
   const hasStarted = todayIso >= windowStart;
   const hasEnded = todayIso >= windowEnd;
 
   const daysLeft = hasEnded ? 0 : hasStarted ? Math.max(1, daysBetween(todayIso, windowEnd)) : totalDays;
 
-  const plannedDailyBudget =
-    period.netPay > 0 ? round2((period.netPay - goal) / totalDays) : null;
+  const plannedDailyBudget = period.netPay > 0 ? round2(budget / totalDays) : null;
 
-  const paceDailyBudget = hasEnded || period.netPay <= 0 ? null : round2(remaining / daysLeft);
+  const paceDailyBudget =
+    hasEnded || period.netPay <= 0 ? null : round2(Math.max(0, budget - spent) / daysLeft);
 
   return {
     periodId: period.id,
@@ -417,10 +445,26 @@ export function buildSavingsSummary(
     entries,
     spent,
     remaining,
+    budget,
+    goalTouched,
+    goalRemaining,
+    overspent,
     daysLeft,
     plannedDailyBudget,
     paceDailyBudget,
     hasStarted,
     hasEnded,
   };
+}
+
+/** One call: the live savings summary for the payout you're living on today. */
+export function currentSavingsSummary(
+  todayIso: string,
+  config: SalaryConfig,
+  expenses: Expense[],
+  absentees: Absentee[],
+  spending: SpendingEntry[]
+): SavingsSummary | null {
+  const period = currentSpendingPeriod(todayIso, config, expenses, absentees);
+  return period ? buildSavingsSummary(period, config, spending, todayIso) : null;
 }

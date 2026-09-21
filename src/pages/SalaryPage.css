@@ -328,3 +328,16 @@
   padding-top: 8px;
   margin-top: 4px;
 }
+
+.salary-savings-entries-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding-bottom: 6px;
+}
+
+.salary-savings-entries-head span:last-child {
+  color: var(--text-primary);
+}

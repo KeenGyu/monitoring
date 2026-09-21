@@ -53,7 +53,7 @@ export interface SalaryConfig {
    */
   contributionSplit: "even" | "first" | "second";
 
-    /** Payouts with a pay date before this are treated as "no salary yet". */
+  /** Payouts with a pay date before this are treated as "no salary yet". */
   firstPayoutDate: string | null;
 
   /** How much you want left over — unspent — by the time the NEXT payout arrives. */
@@ -76,7 +76,7 @@ export const DEFAULT_SALARY_CONFIG: SalaryConfig = {
   manualPhilHealth: 176.63,
   manualPagIbig: 141.3,
   contributionSplit: "even",
-    firstPayoutDate: "2026-09-30",
+  firstPayoutDate: "2026-09-30",
   savingsGoalPerCutoff: 2000,
 };
 
@@ -125,7 +125,7 @@ export interface PayPeriod {
   expenses: Expense[];
   totalExpenses: number;
   netPay: number;
-    /** True when this cutoff is paid out before your first payout date. */
+  /** True when this cutoff is paid out before your first payout date. */
   beforeFirstPayout: boolean;
 }
 
@@ -161,11 +161,19 @@ export interface SavingsSummary {
   spent: number;
   /** netPay - goal - spent. Negative means you've dipped into the goal. */
   remaining: number;
+  /** netPay - goal (never below 0): the money you can spend before touching the goal. */
+  budget: number;
+  /** How much of the savings goal has been spent (0 while you're within budget). */
+  goalTouched: number;
+  /** goal - goalTouched: what's left of the goal. */
+  goalRemaining: number;
+  /** Spending beyond the whole payout (budget + goal). */
+  overspent: number;
   /** Whole days left, today included, until windowEnd. 0 once the window has closed. */
   daysLeft: number;
-  /** remaining / totalDays — the plan you'd set on day one. Null if netPay is 0. */
+  /** budget / totalDays — the plan you'd set on day one. Null if netPay is 0. */
   plannedDailyBudget: number | null;
-  /** remaining / daysLeft — recalculated live as you log spending. Null once daysLeft is 0. */
+  /** Budget still unspent / daysLeft — recalculated live as you log spending. Null once daysLeft is 0. */
   paceDailyBudget: number | null;
   hasStarted: boolean;
   hasEnded: boolean;
