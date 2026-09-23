@@ -341,3 +341,100 @@
 .salary-savings-entries-head span:last-child {
   color: var(--text-primary);
 }
+
+/* ---- Allocate modal ---- */
+
+.allocate-summary {
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  padding: 4px 0;
+  margin: 2px 0 4px;
+}
+
+.allocate-no-goals {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.salary-note-warn {
+  color: var(--status-overdue);
+}
+
+/* ---- This-payout + spending-window card (replaces the old savings block) ---- */
+
+.savings-goal-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.savings-goal-strip-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.savings-goal-strip-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.savings-goal-strip-percent {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--brass-strong);
+  font-size: 16px;
+}
+
+.savings-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 14px 0 6px;
+}
+
+.savings-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-top: 8px;
+}
+
+.savings-status-badge.on-track {
+  color: var(--status-submitted);
+  background: var(--status-submitted-soft);
+}
+
+.savings-status-badge.watch {
+  color: var(--status-progress);
+  background: var(--status-progress-soft);
+}
+
+.savings-status-badge.over-budget {
+  color: var(--status-overdue);
+  background: var(--status-overdue-soft);
+}
+
+.salary-savings-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.salary-savings-actions .btn {
+  flex: 1;
+  justify-content: center;
+}

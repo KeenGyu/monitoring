@@ -1,14 +1,16 @@
-import type { Expense, SalaryConfig, SpendingEntry } from "../types.salary";
+import type { Expense, SalaryConfig, SavingsGoal, SavingsTransaction, SpendingEntry } from "../types.salary";
 import { DEFAULT_SALARY_CONFIG } from "../types.salary";
 
 // Separate IndexedDB database from db.ts, so adding the salary tracker
 // never touches (or risks) your existing reports/activity/absentees data.
 
 const DB_NAME = "qms-work-monitor-salary";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_EXPENSES = "expenses";
 const STORE_CONFIG = "config";
 const STORE_SPENDING = "spending";
+const STORE_GOALS = "goals";
+const STORE_TRANSACTIONS = "savingsTransactions";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -26,6 +28,12 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_SPENDING)) {
         db.createObjectStore(STORE_SPENDING, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(STORE_GOALS)) {
+        db.createObjectStore(STORE_GOALS, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(STORE_TRANSACTIONS)) {
+        db.createObjectStore(STORE_TRANSACTIONS, { keyPath: "id" });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -122,6 +130,38 @@ export function putSpendingEntry(entry: SpendingEntry): Promise<void> {
 
 export function deleteSpendingRecord(id: string): Promise<void> {
   return tx(STORE_SPENDING, "readwrite", (store) => store.delete(id)).then(
+    () => undefined
+  );
+}
+
+// ---- Savings goals ----
+
+export function loadGoals(): Promise<SavingsGoal[]> {
+  return getAll<SavingsGoal>(STORE_GOALS);
+}
+
+export function putGoal(goal: SavingsGoal): Promise<void> {
+  return tx(STORE_GOALS, "readwrite", (store) => store.put(goal)).then(() => undefined);
+}
+
+export function deleteGoalRecord(id: string): Promise<void> {
+  return tx(STORE_GOALS, "readwrite", (store) => store.delete(id)).then(() => undefined);
+}
+
+// ---- Savings transactions (allocations toward a goal — never spending) ----
+
+export function loadSavingsTransactions(): Promise<SavingsTransaction[]> {
+  return getAll<SavingsTransaction>(STORE_TRANSACTIONS);
+}
+
+export function putSavingsTransaction(txn: SavingsTransaction): Promise<void> {
+  return tx(STORE_TRANSACTIONS, "readwrite", (store) => store.put(txn)).then(
+    () => undefined
+  );
+}
+
+export function deleteSavingsTransaction(id: string): Promise<void> {
+  return tx(STORE_TRANSACTIONS, "readwrite", (store) => store.delete(id)).then(
     () => undefined
   );
 }

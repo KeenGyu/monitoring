@@ -53,11 +53,11 @@ export interface SalaryConfig {
    */
   contributionSplit: "even" | "first" | "second";
 
-  /** Payouts with a pay date before this are treated as "no salary yet". */
+    /** Payouts with a pay date before this are treated as "no salary yet". */
   firstPayoutDate: string | null;
 
-  /** How much you want left over — unspent — by the time the NEXT payout arrives. */
-  savingsGoalPerCutoff: number;
+  /** Prefilled amount when opening "Allocate Money" — just a convenience default. */
+  defaultAllocationAmount: number;
 }
 
 export const DEFAULT_SALARY_CONFIG: SalaryConfig = {
@@ -76,8 +76,8 @@ export const DEFAULT_SALARY_CONFIG: SalaryConfig = {
   manualPhilHealth: 176.63,
   manualPagIbig: 141.3,
   contributionSplit: "even",
-  firstPayoutDate: "2026-09-30",
-  savingsGoalPerCutoff: 2000,
+    firstPayoutDate: "2026-09-30",
+  defaultAllocationAmount: 2000,
 };
 
 export type CutoffId = "first" | "second";
@@ -125,7 +125,7 @@ export interface PayPeriod {
   expenses: Expense[];
   totalExpenses: number;
   netPay: number;
-  /** True when this cutoff is paid out before your first payout date. */
+    /** True when this cutoff is paid out before your first payout date. */
   beforeFirstPayout: boolean;
 }
 
@@ -143,38 +143,101 @@ export interface SpendingEntry {
 
 export type NewSpendingInput = Pick<SpendingEntry, "description" | "amount" | "date">;
 
+// ---- Savings goals ----
+
+export type GoalCategory =
+  | "Emergency Fund"
+  | "Laptop"
+  | "Phone"
+  | "Travel"
+  | "Investment"
+  | "Personal"
+  | "Other";
+
+export type GoalStatus = "active" | "completed" | "archived";
+
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  category: GoalCategory;
+  targetAmount: number;
+  /** Kept in sync from the sum of this goal's savings transactions. */
+  currentAmount: number;
+  createdAt: string; // ISO datetime
+  targetDate: string | null; // ISO date, optional
+  status: GoalStatus;
+}
+
+export type NewGoalInput = Pick<SavingsGoal, "name" | "category" | "targetAmount" | "targetDate">;
+
+// ---- Savings transactions (money explicitly allocated toward a goal) ----
+
+export type AllocationSource = "payout" | "manual";
+
+/** One deposit toward a goal — a savings transaction, never a spend. */
+export interface SavingsTransaction {
+  id: string;
+  goalId: string;
+  amount: number;
+  date: string; // ISO date
+  note: string;
+  source: AllocationSource;
+  /** The payDate of the pay period this came from, when source is "payout". */
+  payPeriodDate: string | null;
+  createdAt: string;
+}
+
+export interface NewAllocationInput {
+  goalId: string;
+  amount: number;
+  note?: string;
+  payPeriodDate?: string | null;
+}
+
+/** Progress on one goal — a pure derived view, never persisted. */
+export interface GoalProgress {
+  goal: SavingsGoal;
+  percent: number; // 0-100, clamped
+  remaining: number; // max(0, target - current)
+}
+
+/** A cautious, data-driven estimate of when a goal will be reached. */
+export interface GoalProjection {
+  goalId: string;
+  hasEstimate: boolean;
+  avgPerAllocation: number;
+  payoutsNeeded: number | null;
+  estimatedCompletionDate: string | null; // ISO date
+}
+
 /**
- * Savings pace for one payout's "spending window" — the stretch of days
- * between when that payout lands and when the NEXT one arrives, since
- * that's the actual span the money has to cover.
+ * Per-payout savings snapshot: net pay is untouched, actual money, and
+ * "savings" is only ever what's been explicitly allocated toward a goal —
+ * never assumed. Spending and savings stay in separate buckets throughout.
  */
 export interface SavingsSummary {
   periodId: string;
-  goal: number;
   netPay: number;
-  /** Inclusive start of the window — this period's pay date. */
+  /** Sum of this payout's savings transactions (source "payout"). */
+  plannedSavings: number;
+  /** netPay - plannedSavings. What's left for day-to-day spending. */
+  availableToSpend: number;
+  /** plannedSavings / netPay * 100. 0 when netPay is 0. */
+  savingsRate: number;
+  /** Inclusive start of the spending window — this period's pay date. */
   windowStart: string;
-  /** Exclusive end of the window — the next payout's pay date. */
+  /** Exclusive end of the spending window — the next payout's pay date. */
   windowEnd: string;
   totalDays: number;
-  entries: SpendingEntry[];
-  spent: number;
-  /** netPay - goal - spent. Negative means you've dipped into the goal. */
-  remaining: number;
-  /** netPay - goal (never below 0): the money you can spend before touching the goal. */
-  budget: number;
-  /** How much of the savings goal has been spent (0 while you're within budget). */
-  goalTouched: number;
-  /** goal - goalTouched: what's left of the goal. */
-  goalRemaining: number;
-  /** Spending beyond the whole payout (budget + goal). */
-  overspent: number;
   /** Whole days left, today included, until windowEnd. 0 once the window has closed. */
   daysLeft: number;
-  /** budget / totalDays — the plan you'd set on day one. Null if netPay is 0. */
-  plannedDailyBudget: number | null;
-  /** Budget still unspent / daysLeft — recalculated live as you log spending. Null once daysLeft is 0. */
-  paceDailyBudget: number | null;
+  entries: SpendingEntry[];
+  spent: number;
+  /** availableToSpend - spent. Can go negative once over budget. */
+  remainingToSpend: number;
+  /** remainingToSpend / daysLeft. Null once the window has closed. */
+  safeToSpendPerDay: number | null;
+  status: "on-track" | "watch" | "over-budget";
   hasStarted: boolean;
   hasEnded: boolean;
 }

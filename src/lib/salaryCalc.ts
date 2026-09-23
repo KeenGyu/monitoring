@@ -2,9 +2,13 @@ import type {
   AttendanceDeduction,
   CutoffId,
   Expense,
+  GoalProgress,
+  GoalProjection,
   PayPeriod,
   SalaryConfig,
+  SavingsGoal,
   SavingsSummary,
+  SavingsTransaction,
   SpendingEntry,
 } from "../types.salary";
 import type { Absentee } from "../types";
@@ -76,14 +80,6 @@ export function nextCutoffPayDate(monthKey: string, cutoff: CutoffId): string {
   return cutoffRange(monthKeyOf(next.y, next.m), "first").payDate;
 }
 
-/** The payDate of whichever cutoff paid out right before the given one. */
-function prevCutoffPayDate(monthKey: string, cutoff: CutoffId): string {
-  if (cutoff === "second") return cutoffRange(monthKey, "first").payDate;
-  const { y, m } = parseMonthKey(monthKey);
-  const prev = shiftMonth(y, m, -1);
-  return cutoffRange(monthKeyOf(prev.y, prev.m), "second").payDate;
-}
-
 function eachDate(startIso: string, endIso: string): string[] {
   const out: string[] = [];
   const end = new Date(`${endIso}T00:00:00`);
@@ -98,7 +94,7 @@ function eachDate(startIso: string, endIso: string): string[] {
 }
 
 /** Whole days from startIso up to (but not including) endIsoExclusive. */
-function daysBetween(startIso: string, endIsoExclusive: string): number {
+export function daysBetween(startIso: string, endIsoExclusive: string): number {
   const start = new Date(`${startIso}T00:00:00`);
   const end = new Date(`${endIsoExclusive}T00:00:00`);
   return Math.round((end.getTime() - start.getTime()) / 86400000);
@@ -357,16 +353,17 @@ export function savingsWindowFor(period: Pick<PayPeriod, "monthKey" | "cutoff" |
 }
 
 /**
- * The pay period whose spending window today falls inside — i.e. whose
- * payout you're currently living on. Before your first payout, that's
- * the first payout itself, since spending until then counts against it.
+ * Which pay period's spending window today falls inside — i.e. whose
+ * payout you're currently living on. Different from currentPayPeriodId,
+ * which tells you which cutoff you're currently WORKING (accruing days
+ * toward the *next* payout).
  */
-export function currentSpendingPeriod(
+export function currentSpendingPeriodId(
   todayIso: string,
   config: SalaryConfig,
   expenses: Expense[],
   absentees: Absentee[] = []
-): PayPeriod | null {
+): string | null {
   const { y, m } = parseMonthKey(todayIso.slice(0, 7));
   const candidateMonths = [
     shiftMonth(y, m, -1),
@@ -374,97 +371,154 @@ export function currentSpendingPeriod(
     shiftMonth(y, m, 1),
   ].map((v) => monthKeyOf(v.y, v.m));
 
+  const candidates: PayPeriod[] = [];
   for (const mk of candidateMonths) {
-    for (const cutoff of ["first", "second"] as CutoffId[]) {
-      const period = buildPayPeriod(mk, cutoff, config, expenses, absentees);
-      if (period.beforeFirstPayout) continue;
-      const { windowStart, windowEnd } = savingsWindowFor(period);
-      const isFirstPayout =
-        !!config.firstPayoutDate &&
-        prevCutoffPayDate(period.monthKey, period.cutoff) < config.firstPayoutDate;
-      if ((isFirstPayout || todayIso >= windowStart) && todayIso < windowEnd) return period;
-    }
+    candidates.push(buildPayPeriod(mk, "first", config, expenses, absentees));
+    candidates.push(buildPayPeriod(mk, "second", config, expenses, absentees));
+  }
+
+  for (const period of candidates) {
+    if (period.beforeFirstPayout) continue;
+    const { windowStart, windowEnd } = savingsWindowFor(period);
+    if (todayIso >= windowStart && todayIso < windowEnd) return period.id;
   }
   return null;
 }
 
-export function currentSpendingPeriodId(
-  todayIso: string,
-  config: SalaryConfig,
-  expenses: Expense[],
-  absentees: Absentee[] = []
-): string | null {
-  return currentSpendingPeriod(todayIso, config, expenses, absentees)?.id ?? null;
-}
-
 export function buildSavingsSummary(
   period: PayPeriod,
-  config: SalaryConfig,
   spending: SpendingEntry[],
+  transactions: SavingsTransaction[],
   todayIso: string
 ): SavingsSummary {
   const { windowStart, windowEnd, totalDays } = savingsWindowFor(period);
-  const goal = Math.max(0, config.savingsGoalPerCutoff);
 
-  // Spending logged before your very first payout has no window of its own,
-  // so it counts against the first payout.
-  const isFirstPayout =
-    !!config.firstPayoutDate &&
-    period.payDate >= config.firstPayoutDate &&
-    prevCutoffPayDate(period.monthKey, period.cutoff) < config.firstPayoutDate;
+  // Savings is only ever what's been explicitly allocated to THIS payout —
+  // never assumed from net pay. Net pay itself is never modified.
+  const plannedSavings = round2(
+    transactions
+      .filter((t) => t.source === "payout" && t.payPeriodDate === period.payDate)
+      .reduce((sum, t) => sum + t.amount, 0)
+  );
+  const availableToSpend = round2(period.netPay - plannedSavings);
+  const savingsRate = period.netPay > 0 ? round2((plannedSavings / period.netPay) * 100) : 0;
 
   const entries = spending
-    .filter((e) => (isFirstPayout || e.date >= windowStart) && e.date < windowEnd)
+    .filter((e) => e.date >= windowStart && e.date < windowEnd)
     .sort((a, b) => (a.date === b.date ? a.createdAt.localeCompare(b.createdAt) : a.date.localeCompare(b.date)));
 
   const spent = round2(entries.reduce((sum, e) => sum + e.amount, 0));
-  const remaining = round2(period.netPay - goal - spent);
-
-  const budget = round2(Math.max(0, period.netPay - goal));
-  const goalTouched = round2(Math.min(goal, Math.max(0, spent - budget)));
-  const goalRemaining = round2(goal - goalTouched);
-  const overspent = round2(Math.max(0, spent - budget - goal));
+  const remainingToSpend = round2(availableToSpend - spent);
 
   const hasStarted = todayIso >= windowStart;
   const hasEnded = todayIso >= windowEnd;
-
   const daysLeft = hasEnded ? 0 : hasStarted ? Math.max(1, daysBetween(todayIso, windowEnd)) : totalDays;
 
-  const plannedDailyBudget = period.netPay > 0 ? round2(budget / totalDays) : null;
+  const safeToSpendPerDay = hasEnded ? null : round2(remainingToSpend / daysLeft);
 
-  const paceDailyBudget =
-    hasEnded || period.netPay <= 0 ? null : round2(Math.max(0, budget - spent) / daysLeft);
+  // Status: compare actual spend-so-far against the proportional share of
+  // the available amount for however much of the window has elapsed.
+  let status: SavingsSummary["status"] = "on-track";
+  if (remainingToSpend < 0) {
+    status = "over-budget";
+  } else if (hasStarted && !hasEnded && availableToSpend > 0) {
+    const daysElapsed = Math.max(0, totalDays - daysLeft);
+    const expectedSpentSoFar = availableToSpend * (daysElapsed / totalDays);
+    if (spent > expectedSpentSoFar * 1.15 + 1) status = "watch";
+  }
 
   return {
     periodId: period.id,
-    goal,
     netPay: period.netPay,
+    plannedSavings,
+    availableToSpend,
+    savingsRate,
     windowStart,
     windowEnd,
     totalDays,
+    daysLeft,
     entries,
     spent,
-    remaining,
-    budget,
-    goalTouched,
-    goalRemaining,
-    overspent,
-    daysLeft,
-    plannedDailyBudget,
-    paceDailyBudget,
+    remainingToSpend,
+    safeToSpendPerDay,
+    status,
     hasStarted,
     hasEnded,
   };
 }
 
-/** One call: the live savings summary for the payout you're living on today. */
-export function currentSavingsSummary(
-  todayIso: string,
-  config: SalaryConfig,
-  expenses: Expense[],
-  absentees: Absentee[],
-  spending: SpendingEntry[]
-): SavingsSummary | null {
-  const period = currentSpendingPeriod(todayIso, config, expenses, absentees);
-  return period ? buildSavingsSummary(period, config, spending, todayIso) : null;
+// ---------------------------------------------------------------------
+// Savings goals — progress and cautious completion estimates
+// ---------------------------------------------------------------------
+
+export function computeGoalProgress(goal: SavingsGoal): GoalProgress {
+  const percent =
+    goal.targetAmount > 0 ? Math.min(100, round2((goal.currentAmount / goal.targetAmount) * 100)) : 0;
+  const remaining = Math.max(0, round2(goal.targetAmount - goal.currentAmount));
+  return { goal, percent, remaining };
+}
+
+/**
+ * A conservative estimate of when a goal will be reached, based purely on
+ * that goal's own allocation history. Refuses to guess with fewer than two
+ * allocations, since one data point can't establish a pace.
+ */
+export function computeGoalProjection(
+  goal: SavingsGoal,
+  goalTransactions: SavingsTransaction[]
+): GoalProjection {
+  const txns = goalTransactions
+    .filter((t) => t.goalId === goal.id)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const remaining = Math.max(0, round2(goal.targetAmount - goal.currentAmount));
+
+  if (goal.status === "completed" || remaining <= 0 || txns.length < 2) {
+    return {
+      goalId: goal.id,
+      hasEstimate: false,
+      avgPerAllocation: 0,
+      payoutsNeeded: null,
+      estimatedCompletionDate: null,
+    };
+  }
+
+  const avgPerAllocation = round2(
+    txns.reduce((sum, t) => sum + t.amount, 0) / txns.length
+  );
+
+  const gaps: number[] = [];
+  for (let i = 1; i < txns.length; i++) {
+    gaps.push(Math.max(1, daysBetween(txns[i - 1].date, txns[i].date)));
+  }
+  const avgIntervalDays = Math.max(1, Math.round(gaps.reduce((s, g) => s + g, 0) / gaps.length));
+
+  if (avgPerAllocation <= 0) {
+    return {
+      goalId: goal.id,
+      hasEstimate: false,
+      avgPerAllocation: 0,
+      payoutsNeeded: null,
+      estimatedCompletionDate: null,
+    };
+  }
+
+  const payoutsNeeded = Math.ceil(remaining / avgPerAllocation);
+  const lastDate = txns[txns.length - 1].date;
+  const lastDateObj = new Date(`${lastDate}T00:00:00`);
+  lastDateObj.setDate(lastDateObj.getDate() + avgIntervalDays * payoutsNeeded);
+  const estimatedCompletionDate = iso(
+    lastDateObj.getFullYear(),
+    lastDateObj.getMonth() + 1,
+    lastDateObj.getDate()
+  );
+
+  return {
+    goalId: goal.id,
+    hasEstimate: true,
+    avgPerAllocation,
+    payoutsNeeded,
+    estimatedCompletionDate,
+  };
 }

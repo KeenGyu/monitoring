@@ -4,6 +4,7 @@ import { useApp } from "../store";
 import {
   buildMonthPeriods,
   buildSavingsSummary,
+  computeGoalProgress,
   currentPayPeriodId,
   currentSpendingPeriodId,
   rateForDate,
@@ -17,8 +18,11 @@ import {
   addMonths,
   monthLabel,
 } from "../lib/dates";
-import type { PayPeriod } from "../types.salary";
+import type { PayPeriod, SavingsGoal } from "../types.salary";
 import { SpendingLog } from "../components/SpendingLog";
+import { SavingsDetails } from "../components/SavingsDetails";
+import { AllocateModal } from "../components/AllocateModal";
+import { GoalFormModal } from "../components/GoalFormModal";
 import "./SalaryPage.css";
 
 function peso(n: number): string {
@@ -29,7 +33,13 @@ function cutoffLabel(period: PayPeriod): string {
   return period.cutoff === "first" ? "1st cutoff" : "2nd cutoff";
 }
 
-type SalaryTab = "overview" | "spending";
+const STATUS_LABEL: Record<"on-track" | "watch" | "over-budget", string> = {
+  "on-track": "On track",
+  watch: "Watch your spending",
+  "over-budget": "Over budget",
+};
+
+type SalaryTab = "overview" | "spending" | "savings";
 
 export function SalaryPage() {
   const {
@@ -37,6 +47,8 @@ export function SalaryPage() {
     config,
     expenses,
     spending,
+    goals,
+    transactions,
     updateConfig,
     addExpense,
     editExpense,
@@ -44,6 +56,12 @@ export function SalaryPage() {
     addSpending,
     editSpending,
     deleteSpending,
+    addGoal,
+    editGoal,
+    archiveGoal,
+    deleteGoal,
+    allocate,
+    deleteAllocation,
   } = useSalary();
   const { absentees } = useApp();
   const [tab, setTab] = useState<SalaryTab>("overview");
@@ -53,6 +71,10 @@ export function SalaryPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formDesc, setFormDesc] = useState("");
   const [formAmount, setFormAmount] = useState("");
+  const [allocateFor, setAllocateFor] = useState<{ netPay: number; alreadyAllocated: number; payPeriodDate: string } | null>(
+    null
+  );
+  const [quickNewGoal, setQuickNewGoal] = useState(false);
 
   const periods = useMemo(
     () => (loading ? [] : buildMonthPeriods(monthKey, config, expenses, absentees)),
@@ -63,6 +85,27 @@ export function SalaryPage() {
   const activeSpendingPeriodId = loading
     ? null
     : currentSpendingPeriodId(todayIso(), config, expenses, absentees);
+
+  // The goal to feature on the compact payout card: whichever active goal
+  // was allocated to most recently, falling back to the most recently
+  // created active goal. Every other goal is still reachable via "View
+  // Savings" — this just keeps the per-payout card from getting crowded.
+  const primaryGoal: SavingsGoal | null = useMemo(() => {
+    const activeGoals = goals.filter((g) => g.status === "active");
+    if (activeGoals.length === 0) return null;
+    const lastTxnByGoal = new Map<string, string>();
+    for (const t of transactions) {
+      const prev = lastTxnByGoal.get(t.goalId);
+      if (!prev || t.createdAt > prev) lastTxnByGoal.set(t.goalId, t.createdAt);
+    }
+    const withActivity = activeGoals.filter((g) => lastTxnByGoal.has(g.id));
+    if (withActivity.length > 0) {
+      return withActivity.sort(
+        (a, b) => (lastTxnByGoal.get(b.id) ?? "").localeCompare(lastTxnByGoal.get(a.id) ?? "")
+      )[0];
+    }
+    return [...activeGoals].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  }, [goals, transactions]);
 
   if (loading) {
     return <div className="page">Loading salary data…</div>;
@@ -133,9 +176,27 @@ export function SalaryPage() {
         >
           Spending log{spending.length > 0 ? ` (${spending.length})` : ""}
         </button>
+        <button
+          className={`filter-chip ${tab === "savings" ? "active" : ""}`}
+          onClick={() => setTab("savings")}
+          role="tab"
+          aria-selected={tab === "savings"}
+        >
+          Savings{goals.length > 0 ? ` (${goals.length})` : ""}
+        </button>
       </div>
 
-      {tab === "spending" ? (
+      {tab === "savings" ? (
+        <SavingsDetails
+          goals={goals}
+          transactions={transactions}
+          onAddGoal={addGoal}
+          onEditGoal={editGoal}
+          onArchiveGoal={archiveGoal}
+          onDeleteGoal={deleteGoal}
+          onDeleteAllocation={deleteAllocation}
+        />
+      ) : tab === "spending" ? (
         <SpendingLog
           entries={spending}
           onAdd={addSpending}
@@ -329,20 +390,19 @@ export function SalaryPage() {
               )}
 
               <div className="field">
-                <label>Savings goal per cutoff</label>
+                <label>Default savings amount</label>
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={config.savingsGoalPerCutoff}
+                  value={config.defaultAllocationAmount}
                   onChange={(e) => {
                     const v = Number(e.target.value);
-                    if (Number.isFinite(v) && v >= 0) updateConfig({ savingsGoalPerCutoff: v });
+                    if (Number.isFinite(v) && v >= 0) updateConfig({ defaultAllocationAmount: v });
                   }}
                 />
                 <p className="salary-note">
-                  How much of each payout you want left over, untouched, by the time the next one
-                  arrives. Everything you log in the spending log counts against the payout; once
-                  it passes your budget, the excess is taken from this goal.
+                  Pre-fills the amount when you open "Allocate Money" — you can always change it per
+                  payout. Nothing is set aside automatically.
                 </p>
               </div>
             </div>
@@ -362,9 +422,8 @@ export function SalaryPage() {
             {periods.map((period) => {
               const savings = period.beforeFirstPayout
                 ? null
-                : buildSavingsSummary(period, config, spending, todayIso());
+                : buildSavingsSummary(period, spending, transactions, todayIso());
               const isSpendingNow = period.id === activeSpendingPeriodId;
-              const touched = savings ? savings.goalTouched > 0 : false;
 
               return (
                 <div
@@ -459,14 +518,52 @@ export function SalaryPage() {
 
                       {savings && (
                         <div className={`salary-savings ${isSpendingNow ? "live" : ""}`}>
-                          <div className="salary-savings-head">
-                            <span className="salary-savings-title">
-                              Savings goal
-                              {isSpendingNow && <span className="salary-badge salary-badge-live">Now</span>}
+                          {primaryGoal && (
+                            <div className="savings-goal-strip">
+                              <div>
+                                <div className="savings-goal-strip-name">{primaryGoal.name}</div>
+                                <div className="savings-goal-strip-sub">
+                                  {peso(primaryGoal.currentAmount)} / {peso(primaryGoal.targetAmount)}
+                                </div>
+                              </div>
+                              <div className="savings-goal-strip-percent">
+                                {computeGoalProgress(primaryGoal).percent.toFixed(0)}%
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="savings-section-label">This payout</div>
+                          <div className="salary-row">
+                            <span>Net pay</span>
+                            <span>{peso(savings.netPay)}</span>
+                          </div>
+                          <div className="salary-row salary-deduction">
+                            <span>Planned savings</span>
+                            <span>−{peso(savings.plannedSavings)}</span>
+                          </div>
+                          <div className="salary-row salary-total">
+                            <span>Available to spend</span>
+                            <span>{peso(savings.availableToSpend)}</span>
+                          </div>
+                          <div className="salary-row">
+                            <span>Savings rate</span>
+                            <span>{savings.savingsRate.toFixed(1)}%</span>
+                          </div>
+
+                          <div className="savings-section-label">
+                            Spending window
+                            {isSpendingNow && <span className="salary-badge salary-badge-live">Now</span>}
+                          </div>
+                          <div className="salary-row">
+                            <span>Window</span>
+                            <span>
+                              {formatDateShort(savings.windowStart)} – {formatDateShort(savings.windowEnd)}{" "}
+                              ({savings.totalDays}d)
                             </span>
-                            <span className={`salary-savings-amount ${touched ? "over" : "ok"}`}>
-                              {peso(savings.goalRemaining)} of {peso(savings.goal)} goal left
-                            </span>
+                          </div>
+                          <div className="salary-row">
+                            <span>{savings.hasEnded ? "Window closed" : `${savings.daysLeft}d remaining`}</span>
+                            <span>{peso(savings.spent)} spent</span>
                           </div>
 
                           <div className="salary-savings-bar">
@@ -475,82 +572,32 @@ export function SalaryPage() {
                               style={{
                                 width: `${Math.min(
                                   100,
-                                  savings.netPay > 0 ? (savings.spent / savings.netPay) * 100 : 0
-                                )}%`,
-                                background: touched ? "var(--status-overdue)" : undefined,
-                              }}
-                            />
-                            <div
-                              className="salary-savings-bar-goal"
-                              style={{
-                                left: `${Math.min(
-                                  100,
-                                  savings.netPay > 0 ? (savings.budget / savings.netPay) * 100 : 0
+                                  savings.availableToSpend > 0
+                                    ? (savings.spent / savings.availableToSpend) * 100
+                                    : 0
                                 )}%`,
                               }}
-                              title={`Goal: keep ${peso(savings.goal)} unspent`}
                             />
                           </div>
 
-                          <div className="salary-savings-grid">
-                            <div>
-                              <div className="salary-savings-label">Spent (from log)</div>
-                              <div className={`salary-savings-value ${touched ? "over" : ""}`}>
-                                {peso(savings.spent)} of {peso(savings.netPay)}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="salary-savings-label">Budget left</div>
-                              <div className="salary-savings-value">
-                                {peso(Math.max(0, savings.budget - savings.spent))}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="salary-savings-label">Planned budget</div>
-                              <div className="salary-savings-value">
-                                {savings.plannedDailyBudget !== null ? `${peso(savings.plannedDailyBudget)}/day` : "—"}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="salary-savings-label">
-                                {savings.hasEnded ? "Window closed" : "Spend today, at most"}
-                              </div>
-                              <div
-                                className={`salary-savings-value ${
-                                  savings.paceDailyBudget === 0 && !savings.hasEnded ? "over" : "highlight"
-                                }`}
-                              >
-                                {savings.paceDailyBudget !== null
-                                  ? `${peso(savings.paceDailyBudget)}/day`
-                                  : "—"}
-                                {!savings.hasEnded && (
-                                  <span className="salary-savings-sub"> · {savings.daysLeft}d left</span>
-                                )}
-                              </div>
-                            </div>
+                          <div className="salary-row salary-total">
+                            <span>Safe to spend</span>
+                            <span>
+                              {savings.safeToSpendPerDay !== null
+                                ? `${peso(savings.safeToSpendPerDay)}/day`
+                                : "—"}
+                            </span>
                           </div>
 
-                          <p className="salary-note">
-                            Window {formatDateShort(savings.windowStart)} – {formatDateShort(savings.windowEnd)} (
-                            {savings.totalDays}d)
-                          </p>
-
-                          {touched && (
-                            <p className="salary-savings-warning" style={{ color: "var(--status-overdue)", fontSize: 13 }}>
-                              You've spent {peso(savings.goalTouched)} of your {peso(savings.goal)} savings goal.
-                              {savings.overspent > 0
-                                ? ` You're also ${peso(savings.overspent)} beyond this whole payout.`
-                                : ""}
-                            </p>
+                          {savings.hasStarted && (
+                            <span className={`savings-status-badge ${savings.status}`}>
+                              {STATUS_LABEL[savings.status]}
+                            </span>
                           )}
 
                           {savings.entries.length > 0 && (
                             <div className="salary-savings-entries">
-                              <div className="salary-row salary-savings-entries-head">
-                                <span>Spending log</span>
-                                <span>{peso(savings.spent)}</span>
-                              </div>
-                              {savings.entries.slice(0, 4).map((e) => (
+                              {savings.entries.slice(0, 3).map((e) => (
                                 <div className="salary-row" key={e.id}>
                                   <span>
                                     {e.description} · {formatDateShort(e.date)}
@@ -558,16 +605,34 @@ export function SalaryPage() {
                                   <span>{peso(e.amount)}</span>
                                 </div>
                               ))}
-                              {savings.entries.length > 4 && (
+                              {savings.entries.length > 3 && (
                                 <button
                                   className="salary-inline-btn"
                                   onClick={() => setTab("spending")}
                                 >
-                                  + {savings.entries.length - 4} more — view spending log
+                                  + {savings.entries.length - 3} more — view spending log
                                 </button>
                               )}
                             </div>
                           )}
+
+                          <div className="salary-savings-actions">
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() =>
+                                setAllocateFor({
+                                  netPay: period.netPay,
+                                  alreadyAllocated: savings.plannedSavings,
+                                  payPeriodDate: period.payDate,
+                                })
+                              }
+                            >
+                              + Allocate Money
+                            </button>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setTab("savings")}>
+                              View Savings
+                            </button>
+                          </div>
                         </div>
                       )}
                     </>
@@ -613,6 +678,36 @@ export function SalaryPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {allocateFor && (
+        <AllocateModal
+          netPay={allocateFor.netPay}
+          alreadyAllocated={allocateFor.alreadyAllocated}
+          payPeriodDate={allocateFor.payPeriodDate}
+          goals={goals}
+          defaultAmount={config.defaultAllocationAmount}
+          onClose={() => setAllocateFor(null)}
+          onSave={(input) => {
+            allocate(input);
+            setAllocateFor(null);
+          }}
+          onCreateGoal={() => {
+            setAllocateFor(null);
+            setQuickNewGoal(true);
+          }}
+        />
+      )}
+
+      {quickNewGoal && (
+        <GoalFormModal
+          onClose={() => setQuickNewGoal(false)}
+          onSave={(input) => {
+            addGoal(input);
+            setQuickNewGoal(false);
+            setTab("savings");
+          }}
+        />
       )}
     </div>
   );
